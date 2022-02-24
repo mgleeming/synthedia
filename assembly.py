@@ -11,8 +11,11 @@ parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.'
 )
 
-parser.add_argument( '--mq_txt_dir', required = False, type = str, default = '.')
-parser.add_argument( '--use_pickled_peptides', required = False, type = str,)
+parser.add_argument( '--mq_txt_dir', required = False, type = str)
+parser.add_argument( '--prosit', required = False, type = str)
+parser.add_argument( '--fasta', required = False, type = str)
+
+parser.add_argument( '--use_pickled_peptides', required = False, type = str)
 parser.add_argument( '--ms1_min_mz', required = False, type = float, default = 350)
 parser.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600)
 parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 100)
@@ -30,10 +33,17 @@ parser.add_argument( '--ms_clip_window', required = False, type = float, default
 parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01)
 parser.add_argument( '--output_label', required = False, type = str, default = 'output')
 parser.add_argument( '--isolation_window', required = False, type = int, default = 30)
+parser.add_argument( '--decoys', required = False, type = int, default = 200)
 
 options =  parser.parse_args()
 
+if not any([options.mq_txt_dir, options.prosit]):
+    print('Either an MaxQuant output directory or Prosit file is required')
+    print('Exiting')
+    sys.exit()
+
 MQ_TXT_DIR = options.mq_txt_dir
+PROSIT_FILE = options.prosit
 
 # constants
 PROTON = 1.007276
@@ -63,9 +73,18 @@ MS2_INTS = np.zeros(len(MS2_MZS))
 WINDOW = options.ms_clip_window
 ISOLATION_WINDOW = options.isolation_window
 
-out_dir = 'run_length_%s' %str(options.new_run_length)
-os.makedirs(out_dir)
-output_label = os.path.join(out_dir, options.output_label + '_' + str(options.new_run_length))
+FASTA_FILE = options.fasta
+
+DECOY_NUMBER = options.decoys
+out_dir = 'run_length_%s' %str(int(options.new_run_length))
+
+try:
+    os.makedirs(out_dir)
+except:
+    pass
+
+output_label = os.path.join(out_dir, options.output_label + '_' + str(int(options.new_run_length)))
+print('Writing outputs to %s' %output_label)
 
 @jit(nopython=True)
 def gaussian(x, mu, sig):
@@ -79,8 +98,8 @@ class MS_run(object):
 
     def write_spec(self, spec):
         spec_to_write = MSSpectrum()
-
         spec_to_write.setRT(spec.rt)
+
         spec_to_write.setMSLevel(spec.order)
 
         if spec.order == 2:
@@ -94,9 +113,9 @@ class MS_run(object):
         ints = spec.ints[mask]
         mzs = spec.mzs[mask]
 
-        if len(ints) > 0:
-            spec_to_write.set_peaks([mzs, ints])
-            self.consumer.consumeSpectrum(spec_to_write)
+#        if len(ints) > 0:
+        spec_to_write.set_peaks([mzs, ints])
+        self.consumer.consumeSpectrum(spec_to_write)
 
         del spec_to_write
         return
@@ -113,6 +132,7 @@ class Spectrum(object):
         if isolation_range:
             self.isolation_ll = isolation_range[0]
             self.isolation_hl = isolation_range[1]
+
         return
 
     def make_spectrum(self):
@@ -155,14 +175,46 @@ class Spectrum(object):
         return
 
 class Peptide(object):
-    def __init__(self, evidence_entry, msms_entry):
 
+    def __init__(self, evidence_entry = None, msms_entry = None, prosit_entry = None):
+
+        if (evidence_entry is not None) and (msms_entry is not None):
+            self.populate_from_mq(evidence_entry, msms_entry)
+        elif prosit_entry is not None:
+            self.populate_from_prosit(prosit_entry)
+        else:
+            print('Insufficient data to construct peptides. Exiting')
+            sys.exit()
+        return
+
+    def populate_from_prosit(self, prosit_entry):
+        self.sequence = prosit_entry['StrippedPeptide'].iloc[0]
+        self.charge = prosit_entry['PrecursorCharge'].iloc[0]
+
+        self.mass = (prosit_entry['PrecursorMz'].iloc[0] * self.charge) - (self.charge * PROTON)
+        self.mz = prosit_entry['PrecursorMz'].iloc[0]
+
+        self.rt = prosit_entry['iRT'].iloc[0] * 60
+        self.protein = 'None'
+
+        self.intensity = 1000000
+
+        self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
+        self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]
+        self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
+
+        self.ms1_isotopes = self.get_ms1_isotope_pattern()
+        self.scaled_rt = self.scale_retention_times()
+        return
+
+    def populate_from_mq(self, evidence_entry, msms_entry):
         self.sequence = evidence_entry['Sequence']
         self.charge = evidence_entry['Charge']
         self.mass = evidence_entry['Mass']
         self.mz = evidence_entry['m/z']
         self.rt = evidence_entry['Retention time'] * 60
         self.intensity = evidence_entry['Intensity']
+        self.protein = evidence_entry['Proteins']
 
         # MS2 fragment intensities are substantiall lower than precursor intensity (which is integrated)
         # Should these be scaled?
@@ -214,7 +266,23 @@ def make_spectra(run_length):
     return spectra
 
 
-def read_peptides():
+def read_peptides_from_prosit():
+
+    # read inputs
+    prosit = pd.read_csv(PROSIT_FILE, sep = ',')
+
+    peptides = []
+    l = len(prosit.groupby(['StrippedPeptide','PrecursorCharge']))
+    for i, (index, precursor) in enumerate(prosit.groupby(['StrippedPeptide','PrecursorCharge'])):
+        if i % 100 == 0:
+            print('\t Constructing peptide %s of %s' %(i, l))
+
+        peptides.append( Peptide(prosit_entry = precursor))
+        break
+    print('\tFinished constructing %s peptides' %(len(peptides)))
+    return peptides
+
+def read_peptides_from_mq():
 
     # read inputs
     msms = pd.read_csv(os.path.join(MQ_TXT_DIR, 'msms.txt'), sep = '\t')
@@ -224,18 +292,12 @@ def read_peptides():
     for filterTerm in ['REV_', 'CON_']:
         proteins = proteins.loc[-proteins['Protein IDs'].str.contains(filterTerm, na=False)]
 
-    proteins = proteins.sort_values(by=['Razor + unique peptides'], ascending=False)
-
-    selected_proteins = proteins.head(100)['Protein IDs'].to_list()
-
     # restrict to unmodified peptides for the moment
     # NB - carbamidomethyl cys is retained
     evidence = evidence[evidence['Modifications'] == 'Unmodified']
 
     peptides = []
     for i, evidence_row in evidence.iterrows():
-
-        if evidence_row['Leading razor protein'] not in selected_proteins: continue
 
         if i % 100 == 0:
             print('\t Constructing peptide %s of %s' %(i, len(evidence)))
@@ -246,11 +308,13 @@ def read_peptides():
         # find matching msms entry - this cintains mz2 fragments
         msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
 
+        if msms_entry['Peak coverage'].iloc[0] < 0.6: continue
+
         # safety
         assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
 
         peptides.append(
-            Peptide(evidence_row, msms_entry)
+            Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
@@ -294,7 +358,7 @@ def write_peptide_target_table(peptides, spectra):
     def get_peptide_elution_window(p, ms1_rts):
 
         ints = gaussian(ms1_rts, p.scaled_rt, RT_STDEV)
-        ints *= p.evidence_entry['Intensity']
+        ints *= p.intensity
         mask = np.where(ints > MIN_PEAK_FRACTION)
         peak_rts = ms1_rts[mask]
 
@@ -309,9 +373,9 @@ def write_peptide_target_table(peptides, spectra):
         rt_min, rt_max = get_peptide_elution_window(p, ms1_rts)
 
         of1.write('%s\n' %'\t'.join([str(_) for _ in [
-            p.evidence_entry['Proteins'],
+            p.protein,
             p.sequence,
-            p.evidence_entry['Intensity'],
+            p.intensity,
             p.mz,
             p.charge,
             p.mass,
@@ -327,19 +391,20 @@ def write_peptide_target_table(peptides, spectra):
 
 def write_target_protein_fasta(peptides):
 
-    selected_proteins = []
-    for p in peptides:
-        for prot in p.evidence_entry['Proteins'].split(';'):
-            selected_proteins.append(prot)
-    selected_proteins = list(set(selected_proteins))
-
+    decoy_counter = 0
     sequences = []
-    with fasta.read('UNIPROT_HUMAN_REVIEWED_2020.fasta') as db:
+    with fasta.read(FASTA_FILE, use_index = True) as db:
         for i, entry in enumerate(db):
-            for s in selected_proteins:
-                if s in entry.description:
+            for p in peptides:
+                if p.sequence in entry.sequence:
                     sequences.append([ entry.description, entry.sequence ])
-    fasta.write(sequences, output = '%s.fasta' %output_label, file_mode = 'wt')
+            else:
+                if decoy_counter < DECOY_NUMBER:
+                    sequences.append([ entry.description, entry.sequence ])
+                    decoy_counter += 1
+
+    print('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
+    fasta.write(sequences, output = '%s.fasta' %output_label, file_mode = 'w')
     return
 
 def main():
@@ -350,9 +415,14 @@ def main():
     spectra = make_spectra(NEW_RUN_LENGTH)
 
     print('Constructing peptide models')
-    get_peptides = False
+    get_peptides = True
     if get_peptides:
-        peptides = read_peptides()
+
+        if MQ_TXT_DIR:
+            peptides = read_peptides_from_mq()
+        elif PROSIT_FILE:
+            peptides = read_peptides_from_prosit()
+
         with open('peptides.pickle', 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
     else:
