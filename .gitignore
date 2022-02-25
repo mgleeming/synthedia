@@ -2,6 +2,9 @@ data/
 *.sw*
 *.pickle
 *.csv
+run.sh
+mq_txt/
+nohup.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -31,6 +31,7 @@ parser.add_argument( '--original_run_length', required = False, type = float, de
 parser.add_argument( '--new_run_length', required = False, type = float, default = 12)
 parser.add_argument( '--ms_clip_window', required = False, type = float, default = 0.5)
 parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01)
+parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001)
 parser.add_argument( '--output_label', required = False, type = str, default = 'output')
 parser.add_argument( '--isolation_window', required = False, type = int, default = 30)
 parser.add_argument( '--decoys', required = False, type = int, default = 200)
@@ -38,6 +39,8 @@ parser.add_argument( '--write_empty_spectra', action = 'store_true')
 parser.add_argument( '--run_diann', action = 'store_true')
 parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8')
 parser.add_argument( '--use_existing_peptide_file', action = 'store_true')
+parser.add_argument( '--write_protein_fasta', action = 'store_true')
+parser.add_argument( '--out_dir', required = False, type = str, default = os.getcwd())
 
 options =  parser.parse_args()
 
@@ -59,6 +62,10 @@ PROSIT_FILE = options.prosit
 PROTON = 1.007276
 IAA = 57.02092
 
+FASTA_FILE = options.fasta
+WRITE_PROTEIN_FASTA = options.write_protein_fasta
+
+PEPTIDE_PEP_THRESHOLD = options.mq_pep_threshold
 MS1_SCAN_RANGE = [options.ms1_min_mz, options.ms1_max_mz]
 MS2_SCAN_RANGE = [options.ms2_min_mz, options.ms2_max_mz]
 
@@ -83,10 +90,9 @@ MS2_INTS = np.zeros(len(MS2_MZS))
 WINDOW = options.ms_clip_window
 ISOLATION_WINDOW = options.isolation_window
 
-FASTA_FILE = options.fasta
 
 DECOY_NUMBER = options.decoys
-out_dir = 'run_length_%s' %str(int(options.new_run_length))
+out_dir = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
 
 try:
     os.makedirs(out_dir)
@@ -301,10 +307,12 @@ def read_peptides_from_mq():
     # read inputs
     msms = pd.read_csv(os.path.join(MQ_TXT_DIR, 'msms.txt'), sep = '\t')
     evidence = pd.read_csv(os.path.join(MQ_TXT_DIR, 'evidence.txt'), sep = '\t')
-    proteins = pd.read_csv(os.path.join(MQ_TXT_DIR, 'proteinGroups.txt'), sep = '\t')
 
+    evidence = evidence.sort_values(by = ['PEP'])
     for filterTerm in ['REV_', 'CON_']:
-        proteins = proteins.loc[-proteins['Protein IDs'].str.contains(filterTerm, na=False)]
+        evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
+
+    evidence = evidence[evidence['PEP'] < PEPTIDE_PEP_THRESHOLD]
 
     # restrict to unmodified peptides for the moment
     # NB - carbamidomethyl cys is retained
@@ -321,8 +329,6 @@ def read_peptides_from_mq():
 
         # find matching msms entry - this cintains mz2 fragments
         msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
-
-        if msms_entry['Peak coverage'].iloc[0] < 0.6: continue
 
         # safety
         assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
@@ -341,7 +347,7 @@ def populate_spectra(peptides, spectra):
     t1 = time.time()
     for si, s in enumerate(spectra):
 
-        if si % 100 == 0:
+        if si % 1000 == 0:
             print('\t Writing spectrum %s of %s' %(si, len(spectra)))
 
         # make spec numpy arrays on the fly to sav mem
@@ -405,6 +411,10 @@ def write_peptide_target_table(peptides, spectra):
 
 def write_target_protein_fasta(peptides):
 
+    if not FASTA_FILE:
+        print('No fasta file supplied - no proteins written')
+        return
+
     decoy_counter = 0
     sequences = []
     with fasta.read(FASTA_FILE, use_index = True) as db:
@@ -460,15 +470,16 @@ def main():
     spectra = make_spectra(NEW_RUN_LENGTH)
 
     print('Constructing peptide models')
-    if (USE_EXISTING_PEPTIDE_FILE == True) and (os.path.isfile('peptides.pickle') == True):
-        with open('peptides.pickle', 'rb') as handle:
+    if (USE_EXISTING_PEPTIDE_FILE == True) and (os.path.isfile(os.path.join(options.out_dir, 'peptides.pickle')) == True):
+        print('Using existing peptide file')
+        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'rb') as handle:
             peptides = pickle.load(handle)
     else:
         if MQ_TXT_DIR:
             peptides = read_peptides_from_mq()
         elif PROSIT_FILE:
             peptides = read_peptides_from_prosit()
-        with open('peptides.pickle', 'wb') as handle:
+        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     for p in peptides:
@@ -477,11 +488,12 @@ def main():
     print('Writing peptide target table')
     write_peptide_target_table(peptides, spectra)
 
-    print('Writing protein fasta file')
-    write_target_protein_fasta(peptides)
-
     print('Writing peptides to spectra')
     populate_spectra(peptides, spectra)
+
+    if WRITE_PROTEIN_FASTA:
+        print('Writing protein fasta file')
+        write_target_protein_fasta(peptides)
 
     if RUN_DIANN:
         print('Running DIA-NN')
