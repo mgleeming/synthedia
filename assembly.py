@@ -34,6 +34,10 @@ parser.add_argument( '--min_peak_fraction', required = False, type = float, defa
 parser.add_argument( '--output_label', required = False, type = str, default = 'output')
 parser.add_argument( '--isolation_window', required = False, type = int, default = 30)
 parser.add_argument( '--decoys', required = False, type = int, default = 200)
+parser.add_argument( '--write_empty_spectra', action = 'store_true')
+parser.add_argument( '--run_diann', action = 'store_true')
+parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8')
+parser.add_argument( '--use_existing_peptide_file', action = 'store_true')
 
 options =  parser.parse_args()
 
@@ -41,6 +45,12 @@ if not any([options.mq_txt_dir, options.prosit]):
     print('Either an MaxQuant output directory or Prosit file is required')
     print('Exiting')
     sys.exit()
+
+USE_EXISTING_PEPTIDE_FILE = options.use_existing_peptide_file
+WRITE_EMPTY_SPECTRA = options.write_empty_spectra
+
+DIA_NN_PATH = options.diann_path
+RUN_DIANN = options.run_diann
 
 MQ_TXT_DIR = options.mq_txt_dir
 PROSIT_FILE = options.prosit
@@ -113,9 +123,13 @@ class MS_run(object):
         ints = spec.ints[mask]
         mzs = spec.mzs[mask]
 
-#        if len(ints) > 0:
-        spec_to_write.set_peaks([mzs, ints])
-        self.consumer.consumeSpectrum(spec_to_write)
+        if WRITE_EMPTY_SPECTRA == False:
+            if len(ints) > 0:
+                spec_to_write.set_peaks([mzs, ints])
+                self.consumer.consumeSpectrum(spec_to_write)
+        else:
+            spec_to_write.set_peaks([mzs, ints])
+            self.consumer.consumeSpectrum(spec_to_write)
 
         del spec_to_write
         return
@@ -407,6 +421,37 @@ def write_target_protein_fasta(peptides):
     fasta.write(sequences, output = '%s.fasta' %output_label, file_mode = 'w')
     return
 
+def run_diann(input_dir):
+
+    DIA_NN_PATH = '/usr/diann/1.8/diann-1.8'
+    out_dir = os.path.join(input_dir,'out')
+
+    try:
+        os.makedirs(os.path.join(input_dir,'out'))
+    except:
+        pass
+
+    files = os.listdir(input_dir)
+
+    mzml_file = [_ for _ in files if '.mzml' in _.lower()]
+    fasta_file = [_ for _ in files if '.fasta' in _.lower()]
+
+    assert len(mzml_file) == 1
+    assert len(fasta_file) == 1
+
+    mzml_file = os.path.join(input_dir, mzml_file[0])
+    fasta_file = os.path.join(input_dir, fasta_file[0])
+
+    cmd = '%s ' %DIA_NN_PATH
+    cmd += '--f %s ' % mzml_file
+    cmd += '--fasta %s ' % fasta_file
+    cmd += '--out %s ' % os.path.join(out_dir, 'out.tsv')
+    cmd += '--out-lib %s ' % os.path.join(out_dir, 'out.lib.tsv')
+    cmd += '--lib --predictor  --threads 8 --verbose 3 --qvalue 0.01 --matrices --gen-spec-lib --fasta-search --min-fr-mz 200 --max-fr-mz 1800 --met-excision --cut K*,R* --missed-cleavages 1 --min-pep-len 7 --max-pep-len 30 --min-pr-mz 300 --max-pr-mz 1800 --min-pr-charge 1 --max-pr-charge 4 --unimod4 --var-mods 1 --smart-profiling --pg-level 1 --prosit --predictor'
+
+    os.system(cmd)
+    return
+
 def main():
 
     t1 = time.time()
@@ -415,19 +460,16 @@ def main():
     spectra = make_spectra(NEW_RUN_LENGTH)
 
     print('Constructing peptide models')
-    get_peptides = True
-    if get_peptides:
-
+    if (USE_EXISTING_PEPTIDE_FILE == True) and (os.path.isfile('peptides.pickle') == True):
+        with open('peptides.pickle', 'rb') as handle:
+            peptides = pickle.load(handle)
+    else:
         if MQ_TXT_DIR:
             peptides = read_peptides_from_mq()
         elif PROSIT_FILE:
             peptides = read_peptides_from_prosit()
-
         with open('peptides.pickle', 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    else:
-        with open('peptides.pickle', 'rb') as handle:
-            peptides = pickle.load(handle)
 
     for p in peptides:
         p.scaled_rt = p.scale_retention_times()
@@ -440,6 +482,10 @@ def main():
 
     print('Writing peptides to spectra')
     populate_spectra(peptides, spectra)
+
+    if RUN_DIANN:
+        print('Running DIA-NN')
+        run_diann(out_dir)
 
     print('Done!')
     print('Total execution time: %s' %(time.time() - t1))
