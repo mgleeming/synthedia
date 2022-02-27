@@ -336,7 +336,6 @@ def read_peptides_from_mq():
         peptides.append(
             Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
-
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 

@@ -1,8 +1,11 @@
+
 data/
 *.sw*
 *.pickle
 *.csv
 run.sh
+run_test.sh
+data_test/
 mq_txt/
 nohup.out
 
