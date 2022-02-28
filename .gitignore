@@ -8,6 +8,8 @@ run_test.sh
 data_test/
 mq_txt/
 nohup.out
+libraries/
+nohup*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
