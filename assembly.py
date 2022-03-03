@@ -7,6 +7,15 @@ from pyopenms import *
 from pyteomics import mass, fasta
 from numba import jit
 
+
+# TODO:
+# 1) Acquisition schema import
+# 2) Spectrum centroiding
+# 3) Automated determination of peak standard deviations
+# 4) Randomness in elution profiles
+# 5) Randomness in ms intensities
+# 6) Decoys?
+
 parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.')
 
@@ -14,6 +23,8 @@ parser.add_argument( '--mq_txt_dir', required = False, type = str,
                     help = 'Path to MaxQuat "txt" directory')
 parser.add_argument( '--prosit', required = False, type = str,
                     help = 'Path to prosit prediction library')
+parser.add_argument( '--acquisition_schema', required = False, type = str,
+                    help = 'Path to file defining MS2 acquisition schema')
 parser.add_argument( '--use_existing_peptide_file', required = False, type = str,
                     help = 'Use existing peptide definition file')
 
@@ -96,6 +107,7 @@ RUN_DIANN = options.run_diann
 
 MQ_TXT_DIR = options.mq_txt_dir
 PROSIT_FILE = options.prosit
+ACQUISITION_SCHEMA = options.acquisition_schema
 
 # constants
 PROTON = 1.007276
@@ -130,15 +142,15 @@ WINDOW = options.ms_clip_window
 ISOLATION_WINDOW = options.isolation_window
 
 DECOY_NUMBER = options.decoys
-out_dir = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
+OUT_DIR = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
 
 try:
-    os.makedirs(out_dir)
+    os.makedirs(OUT_DIR)
 except:
     pass
 
-output_label = os.path.join(out_dir, options.output_label + '_' + str(int(options.new_run_length)))
-print('Writing outputs to %s' %output_label)
+OUTPUT_LABEL = os.path.join(OUT_DIR, options.output_label + '_' + str(int(options.new_run_length)))
+print('Writing outputs to %s' %OUTPUT_LABEL)
 
 @jit(nopython=True)
 def gaussian(x, mu, sig):
@@ -147,7 +159,7 @@ def gaussian(x, mu, sig):
 class MS_run(object):
 
     def __init__(self):
-        self.consumer = PlainMSDataWritingConsumer( '%s.mzML' %output_label)
+        self.consumer = PlainMSDataWritingConsumer( '%s.mzML' %OUTPUT_LABEL)
         return
 
     def write_spec(self, spec):
@@ -195,6 +207,7 @@ class Spectrum(object):
         return
 
     def make_spectrum(self):
+        # much faster than creating a new array for every scan
         if self.order == 1:
             self.mzs = MS1_MZS
             self.ints = copy.deepcopy(MS1_INTS)
@@ -208,6 +221,7 @@ class Spectrum(object):
         # scaling factor for point on chromatogram
         intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, RT_STDEV)
 
+        # make sure peak decays to 0
         if intensity_scale_factor < MIN_PEAK_FRACTION: return
 
         if self.order == 1:
@@ -217,18 +231,26 @@ class Spectrum(object):
 
         for peak in peaks:
 
+            # calculating the gaussian for the full m/z range is slow
+            # subset data to only a small region around the peak to speed calculation
             mz_mask = np.where((self.mzs > peak[0] - WINDOW) & (self.mzs < peak[0] + WINDOW))
-
             peak_ints = gaussian(self.mzs[mz_mask], peak[0], stdev)
+
+            # scale gaussian intensities by chromatogram scaling factor
             factor = peak[1] * intensity_scale_factor
             peak_ints *= factor
+
+            # remove low intensity points
             int_mask = np.where(peak_ints < MIN_PEAK_FRACTION)
             peak_ints[int_mask] = 0
+
+            # add new data to full spectrum intensity
             self.ints[mz_mask] += peak_ints
 
         return
 
     def clear(self):
+        # save memory
         del self.mzs
         del self.ints
         return
@@ -304,14 +326,27 @@ def make_spectra(run_length):
     '''
     Constructs a list of dicts that define the parameters of mass spectra to be simulated
     '''
-    run_template = [
-        {'order': 1, 'length': MS1_SCAN_DURATION, 'isolation_range': None},
-    ]
-
-    for i in range(MS1_SCAN_RANGE[0], MS1_SCAN_RANGE[1], ISOLATION_WINDOW):
+    run_template = []
+    if ACQUISITION_SCHEMA is not None:
+        try:
+            df = pd.read_csv(ACQUISITION_SCHEMA)
+            for index, row in df.iterrows():
+                run_template.append({
+                    'order': int(row['ms_level']), 'length': float(row['scan_duration_in_seconds']),
+                    'isolation_range': [float(row['isolation_window_lower_mz']), float(row['isolation_window_upper_mz'])]
+                })
+        except:
+            print('Error parsing acquisition schema file')
+            print('Exiting')
+            sys.exit()
+    else:
         run_template.append({
-            'order': 2, 'length': MS2_SCAN_DURATION, 'isolation_range': [i, i + ISOLATION_WINDOW]
+            'order': 1, 'length': MS1_SCAN_DURATION, 'isolation_range': None
         })
+        for i in range(MS1_SCAN_RANGE[0], MS1_SCAN_RANGE[1], ISOLATION_WINDOW):
+            run_template.append({
+                'order': 2, 'length': MS2_SCAN_DURATION, 'isolation_range': [i, i + ISOLATION_WINDOW]
+            })
 
     spectra = []
     total_run_time = 0
@@ -323,7 +358,6 @@ def make_spectra(run_length):
             total_run_time += entry['length']
 
     return spectra
-
 
 def read_peptides_from_prosit():
 
@@ -378,7 +412,6 @@ def read_peptides_from_mq():
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
-#@profile
 def populate_spectra(peptides, spectra):
 
     run = MS_run()
@@ -424,7 +457,7 @@ def write_peptide_target_table(peptides, spectra):
 
     ms1_rts = np.asarray([s.rt for s in spectra])
 
-    of1 = open('%s_peptide_table.tsv' %output_label,'wt')
+    of1 = open('%s_peptide_table.tsv' %OUTPUT_LABEL,'wt')
     of1.write('%s\n' %'\t'.join(['Protein', 'Sequence', 'Intensity', 'm/z', 'Charge', 'Mass', 'Experimental RT', 'Synthetic RT', 'Synthetic RT Start', 'Synthetic RT End', 'Synthetic m/z 0']))
     for p in peptides:
 
@@ -466,7 +499,7 @@ def write_target_protein_fasta(peptides):
                     decoy_counter += 1
 
     print('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
-    fasta.write(sequences, output = '%s.fasta' %output_label, file_mode = 'w')
+    fasta.write(sequences, output = '%s.fasta' %OUTPUT_LABEL, file_mode = 'w')
     return
 
 def run_diann(input_dir):
@@ -500,7 +533,7 @@ def run_diann(input_dir):
     os.system(cmd)
     return
 
-def main(options):
+def main():
 
     print('Started Synthedia')
     t1 = time.time()
@@ -508,17 +541,21 @@ def main(options):
     print('Preparing spectral template')
     spectra = make_spectra(NEW_RUN_LENGTH)
 
+    for s in spectra:
+        print(s)
+    sys.exit()
+
     print('Constructing peptide models')
-    if (USE_EXISTING_PEPTIDE_FILE == True) and (os.path.isfile(os.path.join(options.out_dir, 'peptides.pickle')) == True):
+    if (USE_EXISTING_PEPTIDE_FILE == True) and (os.path.isfile(os.path.join(OUT_DIR, 'peptides.pickle')) == True):
         print('Using existing peptide file')
-        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'rb') as handle:
+        with open( os.path.join(OUT_DIR, 'peptides.pickle') , 'rb') as handle:
             peptides = pickle.load(handle)
     else:
         if MQ_TXT_DIR:
             peptides = read_peptides_from_mq()
         elif PROSIT_FILE:
             peptides = read_peptides_from_prosit()
-        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
+        with open( os.path.join(OUT_DIR, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     for p in peptides:
@@ -536,12 +573,11 @@ def main(options):
 
     if RUN_DIANN:
         print('Running DIA-NN')
-        run_diann(out_dir)
+        run_diann(OUT_DIR)
 
     print('Done!')
     print('Total execution time: %s' %(time.time() - t1))
     return
 
 if __name__ == '__main__':
-    options =  parser.parse_args()
-    main(options)
+    main()
