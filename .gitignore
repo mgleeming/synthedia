@@ -10,6 +10,7 @@ mq_txt/
 nohup.out
 libraries/
 nohup*
+*.speclib
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

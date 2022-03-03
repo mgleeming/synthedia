@@ -8,44 +8,83 @@ from pyteomics import mass, fasta
 from numba import jit
 
 parser = argparse.ArgumentParser(
-    description = 'Generate DIA data from DDA MaxQuant output.'
-)
+    description = 'Generate DIA data from DDA MaxQuant output.')
 
-parser.add_argument( '--mq_txt_dir', required = False, type = str)
-parser.add_argument( '--prosit', required = False, type = str)
-parser.add_argument( '--fasta', required = False, type = str)
+parser.add_argument( '--mq_txt_dir', required = False, type = str,
+                    help = 'Path to MaxQuat "txt" directory')
+parser.add_argument( '--prosit', required = False, type = str,
+                    help = 'Path to prosit prediction library')
+parser.add_argument( '--use_existing_peptide_file', required = False, type = str,
+                    help = 'Use existing peptide definition file')
 
-parser.add_argument( '--use_pickled_peptides', required = False, type = str)
-parser.add_argument( '--ms1_min_mz', required = False, type = float, default = 350)
-parser.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600)
-parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 100)
-parser.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000)
-parser.add_argument( '--ms1_stdev', required = False, type = float, default = 0.02)
-parser.add_argument( '--ms2_stdev', required = False, type = float, default = 0.05)
-parser.add_argument( '--rt_stdev', required = False, type = float, default = 2)
-parser.add_argument( '--ms1_point_diff', required = False, type = float, default = 0.002)
-parser.add_argument( '--ms2_point_diff', required = False, type = float, default = 0.01)
-parser.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37)
-parser.add_argument( '--ms2_scan_duration', required = False, type = float, default = 0.037)
-parser.add_argument( '--original_run_length', required = False, type = float, default = 120)
-parser.add_argument( '--new_run_length', required = False, type = float, default = 12)
-parser.add_argument( '--ms_clip_window', required = False, type = float, default = 0.5)
-parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01)
-parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001)
-parser.add_argument( '--output_label', required = False, type = str, default = 'output')
-parser.add_argument( '--isolation_window', required = False, type = int, default = 30)
-parser.add_argument( '--decoys', required = False, type = int, default = 200)
-parser.add_argument( '--write_empty_spectra', action = 'store_true')
-parser.add_argument( '--run_diann', action = 'store_true')
-parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8')
-parser.add_argument( '--use_existing_peptide_file', action = 'store_true')
-parser.add_argument( '--write_protein_fasta', action = 'store_true')
-parser.add_argument( '--out_dir', required = False, type = str, default = os.getcwd())
+parser.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
+                    help = 'Minimum m/z at MS1 level')
+parser.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600,
+                    help = 'Maximum m/z at MS1 level')
+
+parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 100,
+                    help = 'Minimum m/z at MS2 level')
+parser.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
+                    help = 'Maximum m/z at MS2 level')
+
+parser.add_argument( '--ms1_stdev', required = False, type = float, default = 0.02,
+                    help = 'Mass spectral peak standard deviation at MS1 level' )
+parser.add_argument( '--ms2_stdev', required = False, type = float, default = 0.05,
+                    help = 'Mass spectral peak standard deviation at MS2 level')
+
+parser.add_argument( '--rt_stdev', required = False, type = float, default = 2,
+                    help = 'Chromatographic peak standard deviation')
+
+parser.add_argument( '--ms1_point_diff', required = False, type = float, default = 0.002,
+                    help = 'MS1 m/z difference between adjacent point')
+parser.add_argument( '--ms2_point_diff', required = False, type = float, default = 0.01,
+                    help = 'MS2 m/z difference between adjacent point')
+
+parser.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37,
+                    help = 'Time in seconds taken to record an MS1 scan.')
+parser.add_argument( '--ms2_scan_duration', required = False, type = float, default = 0.037,
+                    help = 'Time in seconds taken to record an MS2 scan.')
+
+parser.add_argument( '--original_run_length', required = False, type = float, default = 120,
+                    help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times.')
+
+parser.add_argument( '--new_run_length', required = False, type = float, default = 12,
+                    help = 'Length in minutes of new data file.')
+parser.add_argument( '--ms_clip_window', required = False, type = float, default = 0.5,
+                    help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
+parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01,
+                    help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
+parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
+                    help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
+parser.add_argument( '--output_label', required = False, type = str, default = 'output',
+                    help = 'Prefix for output files')
+parser.add_argument( '--isolation_window', required = False, type = int, default = 30,
+                    help = 'Length of DIA window in m/z')
+parser.add_argument( '--write_empty_spectra', action = 'store_true',
+                    help = 'Write empty mass sepctra to the output data file')
+parser.add_argument( '--run_diann', action = 'store_true',
+                    help = 'Run DIA-NN on the output data file')
+parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8',
+                    help = 'Path to DIA-NN')
+parser.add_argument( '--out_dir', required = False, type = str, default = os.getcwd(),
+                    help = 'Output directory where results should be written')
+
+parser.add_argument( '--write_protein_fasta', action = 'store_true',
+                    help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options')
+parser.add_argument( '--fasta', required = False, type = str,
+                    help = 'Path to FASTA file from which protein sequences should be taken')
+parser.add_argument( '--decoys', required = False, type = int, default = 200,
+                    help = 'Write additional non-target protein sequences to output FASTA file')
 
 options =  parser.parse_args()
 
 if not any([options.mq_txt_dir, options.prosit]):
     print('Either an MaxQuant output directory or Prosit file is required')
+    print('Exiting')
+    sys.exit()
+
+if options.write_protein_fasta == True and options.fasta == None:
+    print('Synthedia was asked to write a FASTA file but no input FASTA was given')
     print('Exiting')
     sys.exit()
 
@@ -90,7 +129,6 @@ MS2_INTS = np.zeros(len(MS2_MZS))
 WINDOW = options.ms_clip_window
 ISOLATION_WINDOW = options.isolation_window
 
-
 DECOY_NUMBER = options.decoys
 out_dir = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
 
@@ -132,6 +170,7 @@ class MS_run(object):
         if WRITE_EMPTY_SPECTRA == False:
             if len(ints) > 0:
                 spec_to_write.set_peaks([mzs, ints])
+
                 self.consumer.consumeSpectrum(spec_to_write)
         else:
             spec_to_write.set_peaks([mzs, ints])
@@ -255,16 +294,16 @@ class Peptide(object):
         isotopes = []
         for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
             calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
-            isotopes.append(
-                [calc_mz, isotope[1] * self.intensity]
-            )
+            isotopes.append( [calc_mz, isotope[1] * self.intensity])
         return isotopes
 
     def scale_retention_times(self):
         return self.rt / ORIGINAL_RUN_LENGTH * NEW_RUN_LENGTH
 
 def make_spectra(run_length):
-
+    '''
+    Constructs a list of dicts that define the parameters of mass spectra to be simulated
+    '''
     run_template = [
         {'order': 1, 'length': MS1_SCAN_DURATION, 'isolation_range': None},
     ]
@@ -461,8 +500,9 @@ def run_diann(input_dir):
     os.system(cmd)
     return
 
-def main():
+def main(options):
 
+    print('Started Synthedia')
     t1 = time.time()
 
     print('Preparing spectral template')
@@ -503,4 +543,5 @@ def main():
     return
 
 if __name__ == '__main__':
-    main()
+    options =  parser.parse_args()
+    main(options)
