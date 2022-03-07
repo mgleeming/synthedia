@@ -1,28 +1,25 @@
 import os, sys, time, copy, pickle, argparse, random
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pyopenms import *
 
 from pyteomics import mass, fasta
 from numba import jit
 
+from matplotlib.figure import Figure
+
 # TODO:
 # 1) Acquisition schema import - Done
 # 2) Spectrum centroiding - Done
 # 3) Automated determination of peak standard deviations - Done
-
-# 4) Randomness in elution profiles
-# 5) Randomness in ms intensities
-
+# 4) Randomness in elution profiles - Done
 # 6) Decoys?
-# 7) Plots?
+# 7) Plots? - Done
 # 8) Quantification between multiple files
 
 parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.'
 )
-
 parser.add_argument( '--mq_txt_dir', required = False, type = str,
                     help = 'Path to MaxQuat "txt" directory')
 parser.add_argument( '--prosit', required = False, type = str,
@@ -39,32 +36,28 @@ parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 1
                     help = 'Minimum m/z at MS2 level')
 parser.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
                     help = 'Maximum m/z at MS2 level')
-
 parser.add_argument( '--ms1_resolution', required = False, type = float, default = 120000,
                     help = 'Mass spectral resolution at MS1 level')
 parser.add_argument( '--ms2_resolution', required = False, type = float, default = 15000,
                     help = 'Mass spectral resolution at MS2 level')
 parser.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
                     help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
-
+parser.add_argument( '--rt_instability', required = False, type = float, default = 0,
+                    help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
 parser.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37,
                     help = 'Time in seconds taken to record an MS1 scan.')
 parser.add_argument( '--ms2_scan_duration', required = False, type = float, default = 0.037,
                     help = 'Time in seconds taken to record an MS2 scan.')
-
 parser.add_argument( '--original_run_length', required = False, type = float, default = 120,
                     help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times.')
 parser.add_argument( '--new_run_length', required = False, type = float, default = 12,
                     help = 'Length in minutes of new data file.')
-
 parser.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
                     help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
-
 parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01,
                     help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
 parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
                     help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
-
 parser.add_argument( '--output_label', required = False, type = str, default = 'output',
                     help = 'Prefix for output files')
 parser.add_argument( '--isolation_window', required = False, type = int, default = 30,
@@ -85,6 +78,17 @@ parser.add_argument( '--decoys', required = False, type = int, default = 200,
                     help = 'Write additional non-target protein sequences to output FASTA file')
 parser.add_argument( '--centroid', action = 'store_true',
                     help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
+parser.add_argument( '--resolution_at', required = False, type = float, default = 200,
+                    help = 'm/z value at which resolution is defined')
+parser.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
+                    help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size')
+parser.add_argument( '--tic', action = 'store_true',
+                    help = 'Plot TIC for the generated mzML file')
+
+parser.add_argument( '--n_groups', required = False, type = int, default = 1,
+                    help = 'Number of treatment groups to simulate')
+parser.add_argument( '--samples_per_group', required = False, type = int, default = 1,
+                    help = 'Number of individual samples to simulate per treatment group')
 
 # constants
 PROTON = 1.007276
@@ -94,7 +98,33 @@ IAA = 57.02092
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
-class MS_run():
+class MZMLReader():
+    def __init__(self, file):
+        self.od_exp = OnDiscMSExperiment()
+        self.od_exp.openFile(file)
+        self.num_spectra = self.od_exp.getNrSpectra()
+
+    def __iter__(self):
+        self.current_spec = 0
+        return self
+
+    def __next__(self):
+        if self.current_spec < self.num_spectra:
+            s = self.od_exp.getSpectrum(self.current_spec)
+            t = s.getRT() / 60
+            lvl = s.getMSLevel()
+            mzs, ints = s.get_peaks()
+            self.current_spec += 1
+            return t, lvl, mzs, ints
+        else:
+            self.close()
+            raise StopIteration
+
+    def close(self):
+        del self.od_exp
+        return
+
+class MZMLWriter():
 
     def __init__(self, out_file):
         self.consumer = PlainMSDataWritingConsumer( '%s.mzML' % out_file)
@@ -110,12 +140,16 @@ class MS_run():
         if options.write_empty_spectra == False:
             if len(ints) > 0:
                 spec_to_write.set_peaks([mzs, ints])
-                if options.centroid:
-                    centroided_spectrum = MSSpectrum()
-                    PeakPickerHiRes().pick(spec_to_write, centroided_spectrum)
-                    spec_to_write = centroided_spectrum
+            else:
+                del spec_to_write
+                return
         else:
             spec_to_write.set_peaks([mzs, ints])
+
+        if options.centroid:
+            centroided_spectrum = MSSpectrum()
+            PeakPickerHiRes().pick(spec_to_write, centroided_spectrum)
+            spec_to_write = centroided_spectrum
 
         spec_to_write.setRT(spec.rt)
         spec_to_write.setMSLevel(spec.order)
@@ -128,7 +162,6 @@ class MS_run():
             spec_to_write.setPrecursors( [p] )
 
         self.consumer.consumeSpectrum(spec_to_write)
-
         del spec_to_write
         return
 
@@ -161,6 +194,11 @@ class Spectrum():
 
         # scaling factor for point on chromatogram
         intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, options.rt_stdev)
+
+        # apply chromatographic instability if needed
+        if options.rt_instability > 0:
+            instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
+            intensity_scale_factor *= instability_factor
 
         # make sure peak decays to 0
         if intensity_scale_factor < options.min_peak_fraction: return
@@ -317,6 +355,7 @@ def read_peptides_from_prosit(options):
 
         peptides.append( Peptide(prosit_entry = precursor))
         break
+
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
@@ -329,6 +368,9 @@ def read_peptides_from_mq(options):
     evidence = evidence.sort_values(by = ['PEP'])
     for filterTerm in ['REV_', 'CON_']:
         evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
+
+    # determine protein abundances per treatment group
+    abundance_dict = {p:[0] + [np.random.normal() for _ in range(options.n_groups - 1)] for p in list(set(evidence['Proteins'].to_list()))}
 
     evidence = evidence[evidence['PEP'] < options.mq_pep_threshold]
 
@@ -359,7 +401,7 @@ def read_peptides_from_mq(options):
             Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
-        if len(peptides) > 0:
+        if len(peptides) > 30:
             break
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
@@ -372,7 +414,7 @@ def populate_spectra(options, peptides, spectra, out_file):
     MS2_MZS = np.arange(options.ms2_min_mz, options.ms2_max_mz, options.ms2_point_diff)
     MS2_INTS = np.zeros(len(MS2_MZS))
 
-    run = MS_run(out_file)
+    run = MZMLWriter(out_file)
     t1 = time.time()
     for si, s in enumerate(spectra):
 
@@ -494,14 +536,12 @@ def run_diann(input_dir):
 
 def calculate_peak_parameters(options):
 
-    RESOLUTION_DEFINED_AT = 200
-
     # resolution = m / dm
     # dm = m / resolution
 
     # calculate peak FWHM
-    dm_ms1 = 200 / float(options.ms1_resolution) # resolution defined at m/z 200
-    dm_ms2 = 200 / float(options.ms2_resolution)
+    dm_ms1 = options.resolution_at / float(options.ms1_resolution)
+    dm_ms2 = options.resolution_at / float(options.ms2_resolution)
 
     # calculate peak standard deviations
     # sigma = FWHM / (2 * sqrt(2 * loge(2)))
@@ -509,14 +549,38 @@ def calculate_peak_parameters(options):
     options.ms1_stdev = dm_ms1 / factor
     options.ms2_stdev = dm_ms2 / factor
 
-    # want at least 4 points in the peak region above the FWHM
-    options.ms1_point_diff = dm_ms1 / 4
-    options.ms2_point_diff = dm_ms2 / 4
+    # want at least n points in the peak region above the FWHM
+    options.ms1_point_diff = dm_ms1 / options.n_points_gt_fwhm
+    options.ms2_point_diff = dm_ms2 / options.n_points_gt_fwhm
 
     # chromatographic peak stdev
     options.rt_stdev = options.rt_peak_fwhm / factor
 
     return options
+
+def plot_tic(options, out_file):
+    ms1_rts, ms1_ints = [],[]
+    ms2_rts, ms2_ints = [],[]
+    for (rt, lvl, mzs, ints) in MZMLReader(out_file + '.mzML'):
+        if lvl == 1:
+            ms1_rts.append(rt)
+            ms1_ints.append(sum(ints))
+        if lvl == 2:
+            ms2_rts.append(rt)
+            ms2_ints.append(sum(ints))
+
+    fig = Figure()
+    ax = fig.subplots(2,1, sharex = True)
+
+    ax[0].plot(ms1_rts, ms1_ints)
+    ax[1].plot(ms2_rts, ms2_ints)
+    ax[1].set_xlabel('Retention Time (min)')
+    ax[0].set_ylabel('Intensity')
+    ax[1].set_ylabel('Intensity')
+    ax[0].set_title('MS1')
+    ax[1].set_title('MS2')
+    fig.savefig(out_file + '_tic.jpg', dpi = 300, bbox_inches = 'tight')
+    return
 
 def main(options):
 
@@ -537,7 +601,6 @@ def main(options):
         return
 
     options = calculate_peak_parameters(options)
-
     OUT_DIR = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
 
     try:
@@ -579,7 +642,11 @@ def main(options):
 
     if options.run_diann:
         print('Running DIA-NN')
-        options.run_diann(OUT_DIR)
+        run_diann(OUT_DIR)
+
+    if options.tic:
+        print('Plotting TIC')
+        plot_tic(options, OUTPUT_LABEL)
 
     print('Done!')
     print('Total execution time: %s' %(time.time() - t1))
