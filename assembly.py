@@ -1,4 +1,4 @@
-import os, sys, time, copy, pickle, argparse, random
+import os, sys, time, copy, pickle, argparse, random, math
 import pandas as pd
 import numpy as np
 from pyopenms import *
@@ -87,9 +87,14 @@ parser.add_argument( '--tic', action = 'store_true',
 
 parser.add_argument( '--n_groups', required = False, type = int, default = 1,
                     help = 'Number of treatment groups to simulate')
+
 parser.add_argument( '--samples_per_group', required = False, type = int, default = 1,
                     help = 'Number of individual samples to simulate per treatment group')
 
+parser.add_argument( '--between_group_stdev', required = False, type = float, default = 1.0,
+                    help = 'Standard deviation of a normal distribution from which group means will be drawn')
+parser.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
+                    help = 'Standard deviation of a normal distribution from which within group samples will be drawn')
 # constants
 PROTON = 1.007276
 IAA = 57.02092
@@ -128,6 +133,7 @@ class MZMLWriter():
 
     def __init__(self, out_file):
         self.consumer = PlainMSDataWritingConsumer( '%s.mzML' % out_file)
+        self.n_spec_written = 0
         return
 
     def write_spec(self, spec):
@@ -162,6 +168,7 @@ class MZMLWriter():
             spec_to_write.setPrecursors( [p] )
 
         self.consumer.consumeSpectrum(spec_to_write)
+        self.n_spec_written += 1
         del spec_to_write
         return
 
@@ -245,6 +252,8 @@ class Peptide():
         else:
             print('Insufficient data to construct peptides. Exiting')
             sys.exit()
+
+        self.ms1_isotopes = self.get_ms1_isotope_pattern()
         return
 
     def populate_from_prosit(self, prosit_entry):
@@ -262,9 +271,6 @@ class Peptide():
         self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
         self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]
         self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
-
-        self.ms1_isotopes = self.get_ms1_isotope_pattern()
-        self.scaled_rt = self.scale_retention_times()
         return
 
     def populate_from_mq(self, evidence_entry, msms_entry):
@@ -282,10 +288,8 @@ class Peptide():
         self.ms2_ints = [float(_) for _ in msms_entry['Intensities'].iloc[0].split(';')]
         self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
 
-        assert len(self.ms2_mzs) == len(self.ms2_ints)
 
-        self.ms1_isotopes = self.get_ms1_isotope_pattern()
-        self.scaled_rt = self.scale_retention_times()
+        assert len(self.ms2_mzs) == len(self.ms2_ints)
 
         self.evidence_entry = evidence_entry
         self.msms_entry = msms_entry
@@ -298,8 +302,27 @@ class Peptide():
             isotopes.append( [calc_mz, isotope[1] * self.intensity])
         return isotopes
 
-    def scale_retention_times(self):
-        return self.rt / options.original_run_length * options.new_run_length
+    def scale_retention_times(self, options):
+        self.scaled_rt = self.rt / options.original_run_length * options.new_run_length
+        return
+
+    def set_abundances(self, group, sample, abundance_offset):
+
+        if not hasattr(self, 'abundances'):
+            self.abundances = []
+            self.offsets = []
+        # first sample of group - add new list
+        if sample == 0:
+            self.abundances.append([])
+            self.offsets.append([])
+
+        log_int = math.log2(self.intensity)
+        adjusted_log2_int = log_int + abundance_offset
+#        adjusetd_raw_int = 2 ** adjusted_log2_int
+        adjusetd_raw_int = adjusted_log2_int
+        self.abundances[group].append(adjusetd_raw_int)
+        self.offsets[group].append(abundance_offset)
+        return
 
 def make_spectra(options):
     '''
@@ -369,9 +392,6 @@ def read_peptides_from_mq(options):
     for filterTerm in ['REV_', 'CON_']:
         evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
 
-    # determine protein abundances per treatment group
-    abundance_dict = {p:[0] + [np.random.normal() for _ in range(options.n_groups - 1)] for p in list(set(evidence['Proteins'].to_list()))}
-
     evidence = evidence[evidence['PEP'] < options.mq_pep_threshold]
 
     # restrict to unmodified peptides for the moment
@@ -404,6 +424,30 @@ def read_peptides_from_mq(options):
         if len(peptides) > 30:
             break
     print('\tFinished constructing %s peptides' %(len(peptides)))
+    return peptides
+
+def generate_protein_abundances_for_mzml_files(options, peptides):
+
+    # read mq input
+    evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
+
+    # determine protein abundances per treatment group
+    group_abundance_dict = {p:[0] + [np.random.normal(loc = 0, scale = options.between_group_stdev) for _ in range(options.n_groups - 1)] for p in list(set(evidence['Proteins'].to_list()))}
+
+    for p in peptides:
+        group_abundances = group_abundance_dict.get(p.protein)
+        for groupi, group_abundance in enumerate(group_abundances):
+            sample_abundances = [np.random.normal(loc = group_abundance, scale = options.within_group_stdev) for _ in range(options.samples_per_group)]
+            for samplei, sample_abundance in enumerate(sample_abundances):
+                p.set_abundances(groupi, samplei, sample_abundance)
+
+    return [p for p in peptides if p.abundances != None]
+
+def calculate_scaled_retention_times(options, peptides):
+
+    for p in peptides:
+        p.scale_retention_times(options)
+
     return peptides
 
 def populate_spectra(options, peptides, spectra, out_file):
@@ -445,7 +489,7 @@ def populate_spectra(options, peptides, spectra, out_file):
     run.close()
     return
 
-def write_peptide_target_table(peptides, spectra):
+def write_peptide_target_table(options, peptides, spectra):
 
     def get_peptide_elution_window(p, ms1_rts):
 
@@ -459,12 +503,32 @@ def write_peptide_target_table(peptides, spectra):
     ms1_rts = np.asarray([s.rt for s in spectra])
 
     of1 = open('%s_peptide_table.tsv' %options.output_label,'wt')
-    of1.write('%s\n' %'\t'.join(['Protein', 'Sequence', 'Intensity', 'm/z', 'Charge', 'Mass', 'Experimental RT', 'Synthetic RT', 'Synthetic RT Start', 'Synthetic RT End', 'Synthetic m/z 0']))
+
+    to_write = [
+        'Protein',
+        'Sequence',
+        'Intensity',
+        'm/z',
+        'Charge',
+        'Mass',
+        'Experimental RT',
+        'Synthetic RT',
+        'Synthetic RT Start',
+        'Synthetic RT End',
+        'Synthetic m/z 0'
+    ]
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Intensity group_%s_sample_%s' %(group, sample))
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Offset group_%s_sample_%s' %(group, sample))
+
+    of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
+
     for p in peptides:
-
         rt_min, rt_max = get_peptide_elution_window(p, ms1_rts)
-
-        of1.write('%s\n' %'\t'.join([str(_) for _ in [
+        to_write = [
             p.protein,
             p.sequence,
             p.intensity,
@@ -476,7 +540,15 @@ def write_peptide_target_table(peptides, spectra):
             '%.3f' %rt_min,
             '%.3f' %rt_max,
             p.ms1_isotopes[0][0]
-        ]]))
+        ]
+        for group in p.abundances:
+            for sample in group:
+                to_write.append(sample)
+        for group in p.offsets:
+            for sample in group:
+                to_write.append(sample)
+
+        of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
     of1.close()
     return
@@ -627,11 +699,19 @@ def main(options):
         with open( os.path.join(OUT_DIR, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    for p in peptides:
-        p.scaled_rt = p.scale_retention_times()
+    print('Generating protein abundance profiles')
+    peptides = generate_protein_abundances_for_mzml_files(options, peptides)
+
+    print('Scaling retention times')
+    peptides = calculate_scaled_retention_times(options, peptides)
+
+    if len(peptides) == 0:
+        print('Error - no peptides to write')
+        print('Exiting')
+        sys.exit()
 
     print('Writing peptide target table')
-    write_peptide_target_table(peptides, spectra)
+    write_peptide_target_table(options, peptides, spectra)
 
     print('Writing peptides to spectra')
     populate_spectra(options, peptides, spectra, OUTPUT_LABEL)
