@@ -1,11 +1,10 @@
-import os, sys, time, copy, pickle, argparse, random, math
+import os, sys, time, copy, pickle, multiprocessing
+import argparse, random, math, datetime
 import pandas as pd
 import numpy as np
 from pyopenms import *
-
 from pyteomics import mass, fasta
 from numba import jit
-
 from matplotlib.figure import Figure
 
 # TODO:
@@ -21,25 +20,25 @@ parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.'
 )
 parser.add_argument( '--mq_txt_dir', required = False, type = str,
-                    help = 'Path to MaxQuat "txt" directory')
+                    help = 'Path to MaxQuat "txt" directory.')
 parser.add_argument( '--prosit', required = False, type = str,
-                    help = 'Path to prosit prediction library')
+                    help = 'Path to prosit prediction library.')
 parser.add_argument( '--acquisition_schema', required = False, type = str,
-                    help = 'Path to file defining MS2 acquisition schema')
+                    help = 'Path to file defining MS2 acquisition schema.')
 parser.add_argument( '--use_existing_peptide_file', required = False, type = str,
-                    help = 'Use existing peptide definition file')
+                    help = 'Path to an existin peptide file which will be used.')
 parser.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
-                    help = 'Minimum m/z at MS1 level')
+                    help = 'Minimum m/z at MS1 level.')
 parser.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600,
-                    help = 'Maximum m/z at MS1 level')
+                    help = 'Maximum m/z at MS1 level.')
 parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 100,
-                    help = 'Minimum m/z at MS2 level')
+                    help = 'Minimum m/z at MS2 level.')
 parser.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
-                    help = 'Maximum m/z at MS2 level')
+                    help = 'Maximum m/z at MS2 level.')
 parser.add_argument( '--ms1_resolution', required = False, type = float, default = 120000,
-                    help = 'Mass spectral resolution at MS1 level')
+                    help = 'Mass spectral resolution at MS1 level.')
 parser.add_argument( '--ms2_resolution', required = False, type = float, default = 15000,
-                    help = 'Mass spectral resolution at MS2 level')
+                    help = 'Mass spectral resolution at MS2 level.')
 parser.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
                     help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
 parser.add_argument( '--rt_instability', required = False, type = float, default = 0,
@@ -58,43 +57,45 @@ parser.add_argument( '--min_peak_fraction', required = False, type = float, defa
                     help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
 parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
                     help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
-parser.add_argument( '--output_label', required = False, type = str, default = 'output',
-                    help = 'Prefix for output files')
 parser.add_argument( '--isolation_window', required = False, type = int, default = 30,
-                    help = 'Length of DIA window in m/z')
+                    help = 'Length of DIA window in m/z.')
 parser.add_argument( '--write_empty_spectra', action = 'store_true',
                     help = 'Write empty mass sepctra to the output data file')
 parser.add_argument( '--run_diann', action = 'store_true',
-                    help = 'Run DIA-NN on the output data file')
+                    help = 'Run DIA-NN on the output data file.')
 parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8',
-                    help = 'Path to DIA-NN')
-parser.add_argument( '--out_dir', required = False, type = str, default = os.getcwd(),
-                    help = 'Output directory where results should be written')
+                    help = 'Path to DIA-NN.')
 parser.add_argument( '--write_protein_fasta', action = 'store_true',
-                    help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options')
+                    help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options.')
 parser.add_argument( '--fasta', required = False, type = str,
-                    help = 'Path to FASTA file from which protein sequences should be taken')
+                    help = 'Path to FASTA file from which protein sequences should be taken.')
 parser.add_argument( '--decoys', required = False, type = int, default = 200,
-                    help = 'Write additional non-target protein sequences to output FASTA file')
+                    help = 'Write additional non-target protein sequences to output FASTA file.')
 parser.add_argument( '--centroid', action = 'store_true',
                     help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
 parser.add_argument( '--resolution_at', required = False, type = float, default = 200,
-                    help = 'm/z value at which resolution is defined')
+                    help = 'm/z value at which resolution is defined.')
 parser.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
-                    help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size')
+                    help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
 parser.add_argument( '--tic', action = 'store_true',
-                    help = 'Plot TIC for the generated mzML file')
-
+                    help = 'Plot TIC for the generated mzML file.')
 parser.add_argument( '--n_groups', required = False, type = int, default = 1,
-                    help = 'Number of treatment groups to simulate')
-
+                    help = 'Number of treatment groups to simulate.')
 parser.add_argument( '--samples_per_group', required = False, type = int, default = 1,
-                    help = 'Number of individual samples to simulate per treatment group')
-
+                    help = 'Number of individual samples to simulate per treatment group.')
 parser.add_argument( '--between_group_stdev', required = False, type = float, default = 1.0,
-                    help = 'Standard deviation of a normal distribution from which group means will be drawn')
+                    help = 'Standard deviation of a normal distribution from which group means will be drawn.')
 parser.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
-                    help = 'Standard deviation of a normal distribution from which within group samples will be drawn')
+                    help = 'Standard deviation of a normal distribution from which within group samples will be drawn.')
+
+parser.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'),
+                    help = 'Output directory where results should be written.')
+parser.add_argument( '--output_label', required = False, type = str, default = 'output',
+                    help = 'Prefix for output files.')
+
+parser.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
+                    help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
+
 # constants
 PROTON = 1.007276
 IAA = 57.02092
@@ -132,7 +133,7 @@ class MZMLReader():
 class MZMLWriter():
 
     def __init__(self, out_file):
-        self.consumer = PlainMSDataWritingConsumer( '%s.mzML' % out_file)
+        self.consumer = PlainMSDataWritingConsumer(out_file)
         self.n_spec_written = 0
         return
 
@@ -197,7 +198,7 @@ class Spectrum():
             self.ints = copy.deepcopy(MS2_INTS)
         return
 
-    def add_peaks(self, peptide_scaled_rt, peaks):
+    def add_peaks(self, peptide_scaled_rt, peaks, abundance_offset):
 
         # scaling factor for point on chromatogram
         intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, options.rt_stdev)
@@ -217,13 +218,18 @@ class Spectrum():
 
         for peak in peaks:
 
+            # apply offset to peak intensity
+            log_int = math.log2(peak[1])
+            adjusted_log2_int = log_int + abundance_offset
+            adjusetd_raw_int = 2 ** adjusted_log2_int
+
             # calculating the gaussian for the full m/z range is slow
             # subset data to only a small region around the peak to speed calculation
             mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
             peak_ints = gaussian(self.mzs[mz_mask], peak[0], stdev)
 
             # scale gaussian intensities by chromatogram scaling factor
-            factor = peak[1] * intensity_scale_factor
+            factor = adjusetd_raw_int * intensity_scale_factor
             peak_ints *= factor
 
             # remove low intensity points
@@ -253,7 +259,7 @@ class Peptide():
             print('Insufficient data to construct peptides. Exiting')
             sys.exit()
 
-        self.ms1_isotopes = self.get_ms1_isotope_pattern()
+        self.ms1_isotopes = None
         return
 
     def populate_from_prosit(self, prosit_entry):
@@ -288,7 +294,6 @@ class Peptide():
         self.ms2_ints = [float(_) for _ in msms_entry['Intensities'].iloc[0].split(';')]
         self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
 
-
         assert len(self.ms2_mzs) == len(self.ms2_ints)
 
         self.evidence_entry = evidence_entry
@@ -300,7 +305,8 @@ class Peptide():
         for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
             calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
             isotopes.append( [calc_mz, isotope[1] * self.intensity])
-        return isotopes
+        self.ms1_isotopes = isotopes
+        return
 
     def scale_retention_times(self, options):
         self.scaled_rt = self.rt / options.original_run_length * options.new_run_length
@@ -311,6 +317,7 @@ class Peptide():
         if not hasattr(self, 'abundances'):
             self.abundances = []
             self.offsets = []
+
         # first sample of group - add new list
         if sample == 0:
             self.abundances.append([])
@@ -318,8 +325,8 @@ class Peptide():
 
         log_int = math.log2(self.intensity)
         adjusted_log2_int = log_int + abundance_offset
-#        adjusetd_raw_int = 2 ** adjusted_log2_int
-        adjusetd_raw_int = adjusted_log2_int
+        adjusetd_raw_int = 2 ** adjusted_log2_int
+
         self.abundances[group].append(adjusetd_raw_int)
         self.offsets[group].append(abundance_offset)
         return
@@ -398,11 +405,13 @@ def read_peptides_from_mq(options):
     # NB - carbamidomethyl cys is retained
     evidence = evidence[evidence['Modifications'] == 'Unmodified']
 
+    counter = 0
     peptides = []
     for i, evidence_row in evidence.iterrows():
 
-        if i % 100 == 0:
-            print('\t Constructing peptide %s of %s' %(i, len(evidence)))
+        counter += 1
+        if counter % 100 == 0:
+            print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
 
         # check if precursor out of bounds
         if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
@@ -421,8 +430,9 @@ def read_peptides_from_mq(options):
             Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
-        if len(peptides) > 30:
+        if len(peptides) == 5000:
             break
+
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
@@ -450,7 +460,7 @@ def calculate_scaled_retention_times(options, peptides):
 
     return peptides
 
-def populate_spectra(options, peptides, spectra, out_file):
+def populate_spectra(options, peptides, spectra, groupi, samplei):
 
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
     MS1_INTS = np.zeros(len(MS1_MZS))
@@ -458,35 +468,45 @@ def populate_spectra(options, peptides, spectra, out_file):
     MS2_MZS = np.arange(options.ms2_min_mz, options.ms2_max_mz, options.ms2_point_diff)
     MS2_INTS = np.zeros(len(MS2_MZS))
 
-    run = MZMLWriter(out_file)
-    t1 = time.time()
-    for si, s in enumerate(spectra):
+    run = MZMLWriter(
+        os.path.join(
+            options.out_dir, '%s_group_%s_sample_%s.mzML' %(
+                options.output_label, groupi, samplei
+            )
+        )
+    )
 
-        if si % 1000 == 0:
-            print('\t Writing spectrum %s of %s' %(si, len(spectra)))
+    for spectrumi, spectrum in enumerate(spectra):
+
+        if spectrumi % 1000 == 0:
+            print('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
 
         # make spec numpy arrays on the fly to sav mem
-        s.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
+        spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        peptide_subset = [p for p in peptides if abs(p.scaled_rt - s.rt) < 30]
+        peptide_subset = [p for p in peptides if abs(p.scaled_rt - spectrum.rt) < 30]
 
         for p in peptide_subset:
-            if s.order == 1:
-                # adds peptides MS1 isotope envelopes
-                s.add_peaks(p.scaled_rt, p.ms1_isotopes)
 
-            elif s.order == 2:
-                if (p.mz > s.isolation_ll) and (p.mz < s.isolation_hl):
-                    s.add_peaks(p.scaled_rt, p.ms2_peaks)
+            if spectrum.order == 1:
+                # adds peptides MS1 isotope envelopes
+                abundance_offset = p.offsets[groupi][samplei]
+                spectrum.add_peaks(p.scaled_rt, p.ms1_isotopes, abundance_offset)
+
+            elif spectrum.order == 2:
+                if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
+                    abundance_offset = p.offsets[groupi][samplei]
+                    spectrum.add_peaks(p.scaled_rt, p.ms2_peaks, abundance_offset)
 
         # write final spec to file
-        run.write_spec(s)
+        run.write_spec(spectrum)
 
-        # this deletes spec arrays that aren't needed anymore
-        s.clear()
+        # this deletes m/z and intensity arrays that aren't needed anymore
+        spectrum.clear()
 
     # close consumer
     run.close()
+
     return
 
 def write_peptide_target_table(options, peptides, spectra):
@@ -502,7 +522,7 @@ def write_peptide_target_table(options, peptides, spectra):
 
     ms1_rts = np.asarray([s.rt for s in spectra])
 
-    of1 = open('%s_peptide_table.tsv' %options.output_label,'wt')
+    of1 = open( os.path.join(options.out_dir, '%s_peptide_table.tsv' %options.output_label),'wt')
 
     to_write = [
         'Protein',
@@ -553,7 +573,7 @@ def write_peptide_target_table(options, peptides, spectra):
     of1.close()
     return
 
-def write_target_protein_fasta(peptides):
+def write_target_protein_fasta(options, peptides):
 
     if not options.fasta:
         print('No fasta file supplied - no proteins written')
@@ -572,7 +592,10 @@ def write_target_protein_fasta(peptides):
                     decoy_counter += 1
 
     print('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
-    fasta.write(sequences, output = '%s.fasta' %options.output_label, file_mode = 'w')
+    fasta.write(
+        sequences, file_mode = 'w',
+        output = os.path.join(options.out_dir, '%s.fasta' %options.output_label)
+    )
     return
 
 def run_diann(input_dir):
@@ -630,34 +653,52 @@ def calculate_peak_parameters(options):
 
     return options
 
-def plot_tic(options, out_file):
-    ms1_rts, ms1_ints = [],[]
-    ms2_rts, ms2_ints = [],[]
-    for (rt, lvl, mzs, ints) in MZMLReader(out_file + '.mzML'):
-        if lvl == 1:
-            ms1_rts.append(rt)
-            ms1_ints.append(sum(ints))
-        if lvl == 2:
-            ms2_rts.append(rt)
-            ms2_ints.append(sum(ints))
+def plot_tic(options):
 
     fig = Figure()
     ax = fig.subplots(2,1, sharex = True)
 
-    ax[0].plot(ms1_rts, ms1_ints)
-    ax[1].plot(ms2_rts, ms2_ints)
+    for groupi in range(options.n_groups):
+        for samplei in range(options.samples_per_group):
+
+            mzml_file = os.path.join(
+                options.out_dir, '%s_group_%s_sample_%s.mzML' %(
+                    options.output_label, groupi, samplei
+                )
+            )
+
+            ms1_rts, ms1_ints = [],[]
+            ms2_rts, ms2_ints = [],[]
+
+            for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
+                if lvl == 1:
+                    ms1_rts.append(rt)
+                    ms1_ints.append(sum(ints))
+                if lvl == 2:
+                    ms2_rts.append(rt)
+                    ms2_ints.append(sum(ints))
+
+            ax[0].plot(ms1_rts, ms1_ints, label = 'g%s, s%s' %(groupi, samplei))
+            ax[1].plot(ms2_rts, ms2_ints, label = 'g%s, s%s' %(groupi, samplei))
+
     ax[1].set_xlabel('Retention Time (min)')
     ax[0].set_ylabel('Intensity')
     ax[1].set_ylabel('Intensity')
     ax[0].set_title('MS1')
     ax[1].set_title('MS2')
-    fig.savefig(out_file + '_tic.jpg', dpi = 300, bbox_inches = 'tight')
+    fig.savefig(os.path.join(options.out_dir, '%s_tic.jpg' %options.output_label), dpi = 300, bbox_inches = 'tight')
     return
+
+def simulate_isotope_patterns(*peptide_subset):
+    for p in peptide_subset:
+        p.get_ms1_isotope_pattern()
+    return peptide_subset
 
 def main(options):
 
-    print('Started Synthedia')
-    t1 = time.time()
+    start = datetime.datetime.now()
+    print('Started Synthedia %s' % start)
+    print('Executing with %s processors' %options.num_processors)
 
     options.original_run_length = options.original_run_length * 60
     options.new_run_length = options.new_run_length * 60
@@ -672,31 +713,66 @@ def main(options):
         print('Exiting')
         return
 
+    print('Calculating peak parameters')
     options = calculate_peak_parameters(options)
-    OUT_DIR = os.path.join( options.out_dir, 'run_length_%s' %str(int(options.new_run_length)))
 
     try:
-        os.makedirs(OUT_DIR)
+        os.makedirs(options.out_dir)
     except:
         pass
 
-    OUTPUT_LABEL = os.path.join(OUT_DIR, options.output_label + '_' + str(int(options.new_run_length)))
-    print('Writing outputs to %s' %OUTPUT_LABEL)
+    print('Writing outputs to %s' %options.out_dir)
 
     print('Preparing spectral template')
     spectra = make_spectra(options)
 
     print('Constructing peptide models')
-    if (options.use_existing_peptide_file == True) and (os.path.isfile(os.path.join(OUT_DIR, 'peptides.pickle')) == True):
+    if options.use_existing_peptide_file:
         print('Using existing peptide file')
-        with open( os.path.join(OUT_DIR, 'peptides.pickle') , 'rb') as handle:
+
+        if not os.path.isfile(options.use_existing_peptide_file):
+            print('The specified peptide file was not found')
+            print('Exiting')
+            return
+
+        with open( options.use_existing_peptide_file , 'rb') as handle:
             peptides = pickle.load(handle)
+
     else:
+        t1 = time.time()
         if options.mq_txt_dir:
             peptides = read_peptides_from_mq(options)
         elif options.prosit:
             peptides = read_peptides_from_prosit(options)
-        with open( os.path.join(OUT_DIR, 'peptides.pickle') , 'wb') as handle:
+
+        if options.num_processors == 1:
+            for p in peptides:
+                p.get_ms1_isotope_pattern()
+        else:
+            pool = multiprocessing.Pool(processes = options.num_processors)
+
+            # split work into equal sized lists
+            arg_sets = [[] for _ in range(options.num_processors)]
+            counter = 0
+            for p in peptides:
+                arg_sets[counter].append(p)
+                counter += 1
+                if counter == options.num_processors:
+                    counter = 0
+
+            # send work to procs and collect results
+            peptides = []
+            print('Simulating isotope patterns')
+            for _ in pool.starmap(simulate_isotope_patterns, arg_sets):
+                peptides.extend(list(_))
+
+            pool.close()
+            pool.join()
+
+        t2 = time.time()
+        print(t2 - t1)
+        sys.exit()
+        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     print('Generating protein abundance profiles')
@@ -708,17 +784,32 @@ def main(options):
     if len(peptides) == 0:
         print('Error - no peptides to write')
         print('Exiting')
-        sys.exit()
+        return
+
+    if options.num_processors == 1:
+
+        for groupi in range(options.n_groups):
+            for samplei in range(options.samples_per_group):
+                print('Writing peptides to spectra')
+                populate_spectra(options, peptides, spectra, groupi, samplei)
+    else:
+        print('Writing peptides to spectra')
+        arg_sets = []
+        for groupi in range(options.n_groups):
+            for samplei in range(options.samples_per_group):
+                arg_sets.append([ options, peptides, spectra, groupi, samplei ])
+
+        pool = multiprocessing.Pool(processes = options.num_processors)
+        pool.starmap(populate_spectra, arg_sets)
+        pool.close()
+        pool.join()
 
     print('Writing peptide target table')
     write_peptide_target_table(options, peptides, spectra)
 
-    print('Writing peptides to spectra')
-    populate_spectra(options, peptides, spectra, OUTPUT_LABEL)
-
     if options.write_protein_fasta:
         print('Writing protein fasta file')
-        write_target_protein_fasta(peptides)
+        write_target_protein_fasta(options, peptides)
 
     if options.run_diann:
         print('Running DIA-NN')
@@ -726,10 +817,11 @@ def main(options):
 
     if options.tic:
         print('Plotting TIC')
-        plot_tic(options, OUTPUT_LABEL)
+        plot_tic(options)
 
+    end = datetime.datetime.now()
     print('Done!')
-    print('Total execution time: %s' %(time.time() - t1))
+    print('Total execution time: %s' %(end - start))
     return
 
 if __name__ == '__main__':
