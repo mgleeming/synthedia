@@ -5,7 +5,9 @@ import numpy as np
 from pyopenms import *
 from pyteomics import mass, fasta
 from numba import jit
+
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
 
 # TODO:
 # 1) Acquisition schema import - Done
@@ -14,7 +16,7 @@ from matplotlib.figure import Figure
 # 4) Randomness in elution profiles - Done
 # 6) Decoys?
 # 7) Plots? - Done
-# 8) Quantification between multiple files
+# 8) Quantification between multiple files - Done
 
 parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.'
@@ -331,6 +333,43 @@ class Peptide():
         self.offsets[group].append(abundance_offset)
         return
 
+def plot_acquisition_schema(options, run_template):
+
+    fig = Figure()
+    ax = fig.subplots(1,1)
+
+    plot_time = 0
+    for i in range(3):
+        for scani, scan in enumerate(run_template):
+            if scan['order'] == 1:
+                ax.add_patch(
+                    Rectangle(
+                        (options.ms1_min_mz, plot_time),
+                        options.ms1_max_mz - options.ms1_min_mz,
+                        scan['length'], alpha = 0.5, facecolor = 'blue'
+                    )
+                )
+
+            if scan['order'] == 2:
+                ax.add_patch(
+                    Rectangle(
+                        (scan['isolation_range'][0], plot_time),
+                        scan['isolation_range'][1] - scan['isolation_range'][0],
+                        scan['length'], alpha = 0.5, facecolor = 'red'
+                    )
+                )
+
+            plot_time += scan['length']
+
+    ax.set_xlabel('m/z')
+    ax.set_ylabel('Time (s)')
+    ax.set_title('Acquisition Schema')
+    ax.set_xlim((options.ms1_min_mz,options.ms1_max_mz))
+    ax.set_ylim((0,plot_time))
+    fig.savefig(os.path.join(options.out_dir, '%s_acquisition_schema.jpg' %options.output_label), dpi = 300, bbox_inches = 'tight')
+
+    return
+
 def make_spectra(options):
     '''
     Constructs a list of dicts that define the parameters of mass spectra to be simulated
@@ -356,6 +395,9 @@ def make_spectra(options):
             run_template.append({
                 'order': 2, 'length': options.ms2_scan_duration, 'isolation_range': [i, i + options.isolation_window]
             })
+
+    # plot graph
+    plot_acquisition_schema(options, run_template)
 
     spectra = []
     total_run_time = 0
@@ -430,7 +472,7 @@ def read_peptides_from_mq(options):
             Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
-        if len(peptides) == 5000:
+        if len(peptides) == 50:
             break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
@@ -739,7 +781,6 @@ def main(options):
             peptides = pickle.load(handle)
 
     else:
-        t1 = time.time()
         if options.mq_txt_dir:
             peptides = read_peptides_from_mq(options)
         elif options.prosit:
@@ -769,9 +810,6 @@ def main(options):
             pool.close()
             pool.join()
 
-        t2 = time.time()
-        print(t2 - t1)
-        sys.exit()
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
