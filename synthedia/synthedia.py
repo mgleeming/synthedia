@@ -7,96 +7,123 @@ from pyteomics import mass, fasta
 from numba import jit
 
 from matplotlib.figure import Figure
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Patch
 
 # TODO:
 # 1) Acquisition schema import - Done
-# 2) Spectrum centroiding - Done
+# 2) Spectrum centroiding - Donej
 # 3) Automated determination of peak standard deviations - Done
 # 4) Randomness in elution profiles - Done
 # 6) Decoys?
 # 7) Plots? - Done
 # 8) Quantification between multiple files - Done
+# 9) Peak tailing
 
 parser = argparse.ArgumentParser(
     description = 'Generate DIA data from DDA MaxQuant output.'
 )
-parser.add_argument( '--mq_txt_dir', required = False, type = str,
+
+io = parser.add_argument_group("Input/Output")
+io.add_argument( '--mq_txt_dir', required = False, type = str,
                     help = 'Path to MaxQuat "txt" directory.')
-parser.add_argument( '--prosit', required = False, type = str,
+io.add_argument( '--prosit', required = False, type = str,
                     help = 'Path to prosit prediction library.')
-parser.add_argument( '--acquisition_schema', required = False, type = str,
+io.add_argument( '--acquisition_schema', required = False, type = str,
                     help = 'Path to file defining MS2 acquisition schema.')
-parser.add_argument( '--use_existing_peptide_file', required = False, type = str,
+io.add_argument( '--use_existing_peptide_file', required = False, type = str,
                     help = 'Path to an existin peptide file which will be used.')
-parser.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
+io.add_argument( '--write_protein_fasta', action = 'store_true',
+                    help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options.')
+io.add_argument( '--fasta', required = False, type = str,
+                    help = 'Path to FASTA file from which protein sequences should be taken.')
+io.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'),
+                    help = 'Output directory where results should be written.')
+io.add_argument( '--output_label', required = False, type = str, default = 'output',
+                    help = 'Prefix for output files.')
+
+
+processing = parser.add_argument_group("Processing")
+processing.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
+                    help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
+
+
+instrument = parser.add_argument_group("Instrument Parameters")
+instrument.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
                     help = 'Minimum m/z at MS1 level.')
-parser.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600,
+instrument.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600,
                     help = 'Maximum m/z at MS1 level.')
-parser.add_argument( '--ms2_min_mz', required = False, type = float, default = 100,
+instrument.add_argument( '--ms2_min_mz', required = False, type = float, default = 100,
                     help = 'Minimum m/z at MS2 level.')
-parser.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
+instrument.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
                     help = 'Maximum m/z at MS2 level.')
-parser.add_argument( '--ms1_resolution', required = False, type = float, default = 120000,
+instrument.add_argument( '--ms1_resolution', required = False, type = float, default = 120000,
                     help = 'Mass spectral resolution at MS1 level.')
-parser.add_argument( '--ms2_resolution', required = False, type = float, default = 15000,
+instrument.add_argument( '--ms2_resolution', required = False, type = float, default = 15000,
                     help = 'Mass spectral resolution at MS2 level.')
-parser.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
-                    help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
-parser.add_argument( '--rt_instability', required = False, type = float, default = 0,
-                    help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
-parser.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37,
+instrument.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37,
                     help = 'Time in seconds taken to record an MS1 scan.')
-parser.add_argument( '--ms2_scan_duration', required = False, type = float, default = 0.037,
+instrument.add_argument( '--ms2_scan_duration', required = False, type = float, default = 0.037,
                     help = 'Time in seconds taken to record an MS2 scan.')
-parser.add_argument( '--original_run_length', required = False, type = float, default = 120,
-                    help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times.')
-parser.add_argument( '--new_run_length', required = False, type = float, default = 12,
-                    help = 'Length in minutes of new data file.')
-parser.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
-                    help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
-parser.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01,
-                    help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
-parser.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
-                    help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
-parser.add_argument( '--isolation_window', required = False, type = int, default = 30,
+instrument.add_argument( '--isolation_window', required = False, type = int, default = 30,
                     help = 'Length of DIA window in m/z.')
-parser.add_argument( '--write_empty_spectra', action = 'store_true',
+instrument.add_argument( '--resolution_at', required = False, type = float, default = 200,
+                    help = 'm/z value at which resolution is defined.')
+instrument.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
+                    help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
+
+
+chromatography = parser.add_argument_group("Chromatography")
+chromatography.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
+                    help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
+chromatography.add_argument( '--rt_instability', required = False, type = float, default = 0,
+                    help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
+chromatography.add_argument( '--original_run_length', required = False, type = float, default = 120,
+                    help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times.')
+chromatography.add_argument( '--new_run_length', required = False, type = float, default = 12,
+                    help = 'Length in minutes of new data file.')
+
+
+simulation = parser.add_argument_group('Simulation')
+simulation.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
+                    help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
+simulation.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01,
+                    help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
+simulation.add_argument( '--centroid', action = 'store_true',
+                    help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
+simulation.add_argument( '--write_empty_spectra', action = 'store_true',
                     help = 'Write empty mass sepctra to the output data file')
+
+
+filtering = parser.add_argument_group('Filtering')
+filtering.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
+                    help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
+
+
+diann = parser.add_argument_group('Analysis')
 parser.add_argument( '--run_diann', action = 'store_true',
                     help = 'Run DIA-NN on the output data file.')
 parser.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8',
                     help = 'Path to DIA-NN.')
-parser.add_argument( '--write_protein_fasta', action = 'store_true',
-                    help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options.')
-parser.add_argument( '--fasta', required = False, type = str,
-                    help = 'Path to FASTA file from which protein sequences should be taken.')
-parser.add_argument( '--decoys', required = False, type = int, default = 200,
-                    help = 'Write additional non-target protein sequences to output FASTA file.')
-parser.add_argument( '--centroid', action = 'store_true',
-                    help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
-parser.add_argument( '--resolution_at', required = False, type = float, default = 200,
-                    help = 'm/z value at which resolution is defined.')
-parser.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
-                    help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
-parser.add_argument( '--tic', action = 'store_true',
+
+
+plotting = parser.add_argument_group('Plotting')
+plotting.add_argument( '--tic', action = 'store_true',
                     help = 'Plot TIC for the generated mzML file.')
-parser.add_argument( '--n_groups', required = False, type = int, default = 1,
+plotting.add_argument( '--schema', action = 'store_true',
+                    help = 'Plot acquisition schema')
+plotting.add_argument( '--all', action = 'store_true',
+                    help = 'Plot all graphics')
+
+grouping_and_quant = parser.add_argument_group('Grouping and quantitation')
+grouping_and_quant.add_argument( '--n_groups', required = False, type = int, default = 1,
                     help = 'Number of treatment groups to simulate.')
-parser.add_argument( '--samples_per_group', required = False, type = int, default = 1,
+grouping_and_quant.add_argument( '--samples_per_group', required = False, type = int, default = 1,
                     help = 'Number of individual samples to simulate per treatment group.')
-parser.add_argument( '--between_group_stdev', required = False, type = float, default = 1.0,
+grouping_and_quant.add_argument( '--between_group_stdev', required = False, type = float, default = 1.0,
                     help = 'Standard deviation of a normal distribution from which group means will be drawn.')
-parser.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
+grouping_and_quant.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
                     help = 'Standard deviation of a normal distribution from which within group samples will be drawn.')
 
-parser.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'),
-                    help = 'Output directory where results should be written.')
-parser.add_argument( '--output_label', required = False, type = str, default = 'output',
-                    help = 'Prefix for output files.')
-
-parser.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
-                    help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
 
 # constants
 PROTON = 1.007276
@@ -361,6 +388,11 @@ def plot_acquisition_schema(options, run_template):
 
             plot_time += scan['length']
 
+    ax.legend(handles=[
+        Patch(color = 'blue', label = 'MS1', alpha = 0.5),
+        Patch(color = 'red', label = 'MS2', alpha = 0.5)
+    ])
+
     ax.set_xlabel('m/z')
     ax.set_ylabel('Time (s)')
     ax.set_title('Acquisition Schema')
@@ -381,7 +413,7 @@ def make_spectra(options):
             for index, row in df.iterrows():
                 run_template.append({
                     'order': int(row['ms_level']), 'length': float(row['scan_duration_in_seconds']),
-                    'isolation_range': [float(row['options.isolation_window_lower_mz']), float(row['options.isolation_window_upper_mz'])]
+                    'isolation_range': [float(row['isolation_window_lower_mz']), float(row['isolation_window_upper_mz'])]
                 })
         except:
             print('Error parsing acquisition schema file')
@@ -396,8 +428,11 @@ def make_spectra(options):
                 'order': 2, 'length': options.ms2_scan_duration, 'isolation_range': [i, i + options.isolation_window]
             })
 
-    # plot graph
-    plot_acquisition_schema(options, run_template)
+    if (options.all == True) or (options.schema == True):
+        # plot graph
+        plot_acquisition_schema(options, run_template)
+
+    sys.exit()
 
     spectra = []
     total_run_time = 0
@@ -853,7 +888,7 @@ def main(options):
         print('Running DIA-NN')
         run_diann(OUT_DIR)
 
-    if options.tic:
+    if (options.all == True) or (options.tic == True):
         print('Plotting TIC')
         plot_tic(options)
 
