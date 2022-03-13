@@ -1,5 +1,5 @@
-import pathlib
-from setuptools import setup
+import pathlib, synthedia
+from setuptools import setup, find_packages
 
 # The directory containing this file
 HERE = pathlib.Path(__file__).parent
@@ -24,10 +24,14 @@ setup(
         "Programming Language :: Python :: 3.7",
     ],
     packages = ["synthedia"],
-    scripts = ['synthedia/synthedia.py'],
+    entry_points={
+        "console_scripts": [
+            "synthedia = synthedia.__main__:main"
+        ]
+    },
     install_requires = [
         "pandas", "numpy", "pyopenms",
-        "pyteomics", "numba", "matplotlib"
+        "pyteomics", "numba", "matplotlib", "cython"
     ],
 )
 
