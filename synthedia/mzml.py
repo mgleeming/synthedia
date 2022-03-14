@@ -1,5 +1,10 @@
+import os, copy, random, math
 from pyopenms import *
-from pyteomics import mass, fasta
+from numba import jit
+
+@jit(nopython=True)
+def gaussian(x, mu, sig):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 
 class MZMLReader():
     def __init__(self, file):
@@ -34,7 +39,7 @@ class MZMLWriter():
         self.n_spec_written = 0
         return
 
-    def write_spec(self, spec):
+    def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
         mask = np.where(spec.ints > 0)
@@ -95,7 +100,7 @@ class Spectrum():
             self.ints = copy.deepcopy(MS2_INTS)
         return
 
-    def add_peaks(self, peptide_scaled_rt, peaks, abundance_offset):
+    def add_peaks(self, options, peptide_scaled_rt, peaks, abundance_offset):
 
         # scaling factor for point on chromatogram
         intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, options.rt_stdev)

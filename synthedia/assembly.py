@@ -2,11 +2,11 @@ import os, sys, time, copy, pickle, multiprocessing
 import random, math, datetime
 import pandas as pd
 import numpy as np
-from pyopenms import *
-from pyteomics import mass, fasta
 from numba import jit
 
 from . import plotting
+from .peptide import SyntheticPeptide
+from .mzml import Spectrum, MZMLWriter, MZMLReader
 
 # TODO:jj
 # 1) Acquisition schema import - Done
@@ -20,244 +20,13 @@ from . import plotting
 # 10) Probability sample in missing
 # 11) Probability group in missing
 # 12) Probability missing increases as abundance decreases
-# 13) add contaminant wall ions
+# 13) Add contaminant wall ions
 # 14) Chemical noise
 # 15) Missing value plots
-
-# constants
-PROTON = 1.007276
-IAA = 57.02092
 
 @jit(nopython=True)
 def gaussian(x, mu, sig):
     return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
-
-class MZMLReader():
-    def __init__(self, file):
-        self.od_exp = OnDiscMSExperiment()
-        self.od_exp.openFile(file)
-        self.num_spectra = self.od_exp.getNrSpectra()
-
-    def __iter__(self):
-        self.current_spec = 0
-        return self
-
-    def __next__(self):
-        if self.current_spec < self.num_spectra:
-            s = self.od_exp.getSpectrum(self.current_spec)
-            t = s.getRT() / 60
-            lvl = s.getMSLevel()
-            mzs, ints = s.get_peaks()
-            self.current_spec += 1
-            return t, lvl, mzs, ints
-        else:
-            self.close()
-            raise StopIteration
-
-    def close(self):
-        del self.od_exp
-        return
-
-class MZMLWriter():
-
-    def __init__(self, out_file):
-        self.consumer = PlainMSDataWritingConsumer(out_file)
-        self.n_spec_written = 0
-        return
-
-    def write_spec(self, spec):
-        spec_to_write = MSSpectrum()
-
-        mask = np.where(spec.ints > 0)
-        ints = spec.ints[mask]
-        mzs = spec.mzs[mask]
-
-        if options.write_empty_spectra == False:
-            if len(ints) > 0:
-                spec_to_write.set_peaks([mzs, ints])
-            else:
-                del spec_to_write
-                return
-        else:
-            spec_to_write.set_peaks([mzs, ints])
-
-        if options.centroid:
-            centroided_spectrum = MSSpectrum()
-            PeakPickerHiRes().pick(spec_to_write, centroided_spectrum)
-            spec_to_write = centroided_spectrum
-
-        spec_to_write.setRT(spec.rt)
-        spec_to_write.setMSLevel(spec.order)
-
-        if spec.order == 2:
-            p = Precursor()
-            p.setMZ((spec.isolation_hl + spec.isolation_ll) / 2)
-            p.setIsolationWindowLowerOffset(spec.isolation_ll)
-            p.setIsolationWindowUpperOffset(spec.isolation_hl)
-            spec_to_write.setPrecursors( [p] )
-
-        self.consumer.consumeSpectrum(spec_to_write)
-        self.n_spec_written += 1
-        del spec_to_write
-        return
-
-    def close(self):
-        del self.consumer
-        return
-
-class Spectrum():
-    def __init__(self, rt, order, isolation_range):
-        self.rt = rt
-        self.order = order
-
-        if isolation_range:
-            self.isolation_ll = isolation_range[0]
-            self.isolation_hl = isolation_range[1]
-
-        return
-
-    def make_spectrum(self, MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS):
-        # much faster than creating a new array for every scan
-        if self.order == 1:
-            self.mzs = MS1_MZS
-            self.ints = copy.deepcopy(MS1_INTS)
-        else:
-            self.mzs = MS2_MZS
-            self.ints = copy.deepcopy(MS2_INTS)
-        return
-
-    def add_peaks(self, peptide_scaled_rt, peaks, abundance_offset):
-
-        # scaling factor for point on chromatogram
-        intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, options.rt_stdev)
-
-        # apply chromatographic instability if needed
-        if options.rt_instability > 0:
-            instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
-            intensity_scale_factor *= instability_factor
-
-        # make sure peak decays to 0
-        if intensity_scale_factor < options.min_peak_fraction: return
-
-        if self.order == 1:
-            stdev = options.ms1_stdev
-        else:
-            stdev = options.ms2_stdev
-
-        for peak in peaks:
-
-            # apply offset to peak intensity
-            log_int = math.log2(peak[1])
-            adjusted_log2_int = log_int + abundance_offset
-            adjusetd_raw_int = 2 ** adjusted_log2_int
-
-            # calculating the gaussian for the full m/z range is slow
-            # subset data to only a small region around the peak to speed calculation
-            mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
-            peak_ints = gaussian(self.mzs[mz_mask], peak[0], stdev)
-
-            # scale gaussian intensities by chromatogram scaling factor
-            factor = adjusetd_raw_int * intensity_scale_factor
-            peak_ints *= factor
-
-            # remove low intensity points
-            int_mask = np.where(peak_ints < options.min_peak_fraction)
-            peak_ints[int_mask] = 0
-
-            # add new data to full spectrum intensity
-            self.ints[mz_mask] += peak_ints
-
-        return
-
-    def clear(self):
-        # save memory
-        del self.mzs
-        del self.ints
-        return
-
-class Peptide():
-
-    def __init__(self, evidence_entry = None, msms_entry = None, prosit_entry = None):
-
-        if (evidence_entry is not None) and (msms_entry is not None):
-            self.populate_from_mq(evidence_entry, msms_entry)
-        elif prosit_entry is not None:
-            self.populate_from_prosit(prosit_entry)
-        else:
-            print('Insufficient data to construct peptides. Exiting')
-            sys.exit()
-
-        self.ms1_isotopes = None
-        return
-
-    def populate_from_prosit(self, prosit_entry):
-        self.sequence = prosit_entry['StrippedPeptide'].iloc[0]
-        self.charge = prosit_entry['PrecursorCharge'].iloc[0]
-
-        self.mass = (prosit_entry['PrecursorMz'].iloc[0] * self.charge) - (self.charge * PROTON)
-        self.mz = prosit_entry['PrecursorMz'].iloc[0]
-
-        self.rt = prosit_entry['iRT'].iloc[0] * 60
-        self.protein = 'None'
-
-        self.intensity = 1000000
-
-        self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
-        self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]
-        self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
-        return
-
-    def populate_from_mq(self, evidence_entry, msms_entry):
-        self.sequence = evidence_entry['Sequence']
-        self.charge = evidence_entry['Charge']
-        self.mass = evidence_entry['Mass']
-        self.mz = evidence_entry['m/z']
-        self.rt = evidence_entry['Retention time'] * 60
-        self.intensity = evidence_entry['Intensity']
-        self.protein = evidence_entry['Proteins']
-
-        # MS2 fragment intensities are substantially lower than precursor intensity (which is integrated)
-        # Should these be scaled?
-        self.ms2_mzs = [float(_) for _ in msms_entry['Masses'].iloc[0].split(';')]
-        self.ms2_ints = [float(_) for _ in msms_entry['Intensities'].iloc[0].split(';')]
-        self.ms2_peaks = list(zip(self.ms2_mzs, self.ms2_ints))
-
-        assert len(self.ms2_mzs) == len(self.ms2_ints)
-
-        self.evidence_entry = evidence_entry
-        self.msms_entry = msms_entry
-        return
-
-    def get_ms1_isotope_pattern(self):
-        isotopes = []
-        for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
-            calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
-            isotopes.append( [calc_mz, isotope[1] * self.intensity])
-        self.ms1_isotopes = isotopes
-        return
-
-    def scale_retention_times(self, options):
-        self.scaled_rt = self.rt / options.original_run_length * options.new_run_length
-        return
-
-    def set_abundances(self, group, sample, abundance_offset):
-
-        if not hasattr(self, 'abundances'):
-            self.abundances = []
-            self.offsets = []
-
-        # first sample of group - add new list
-        if sample == 0:
-            self.abundances.append([])
-            self.offsets.append([])
-
-        log_int = math.log2(self.intensity)
-        adjusted_log2_int = log_int + abundance_offset
-        adjusetd_raw_int = 2 ** adjusted_log2_int
-
-        self.abundances[group].append(adjusetd_raw_int)
-        self.offsets[group].append(abundance_offset)
-        return
 
 def make_spectra(options):
     '''
@@ -288,8 +57,6 @@ def make_spectra(options):
     if (options.all == True) or (options.schema == True):
         plotting.plot_acquisition_schema(options, run_template)
 
-    sys.exit()
-
     spectra = []
     total_run_time = 0
     while total_run_time < options.new_run_length:
@@ -316,7 +83,7 @@ def read_peptides_from_prosit(options):
         if (float(precursor['PrecursorMz']) < options.ms1_min_mz) or (float(precursor['PrecursorMz']) > options.ms1_max_mz):
             continue
 
-        peptides.append( Peptide(prosit_entry = precursor))
+        peptides.append( SyntheticPeptide(prosit_entry = precursor))
         break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
@@ -360,7 +127,7 @@ def read_peptides_from_mq(options):
         assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
 
         peptides.append(
-            Peptide(evidence_entry = evidence_row, msms_entry = msms_entry)
+            SyntheticPeptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
         if len(peptides) == 50:
@@ -380,7 +147,11 @@ def generate_protein_abundances_for_mzml_files(options, peptides):
     for p in peptides:
         group_abundances = group_abundance_dict.get(p.protein)
         for groupi, group_abundance in enumerate(group_abundances):
-            sample_abundances = [np.random.normal(loc = group_abundance, scale = options.within_group_stdev) for _ in range(options.samples_per_group)]
+            sample_abundances = [
+                np.random.normal(
+                    loc = group_abundance, scale = options.within_group_stdev
+                ) for _ in range(options.samples_per_group)
+            ]
             for samplei, sample_abundance in enumerate(sample_abundances):
                 p.set_abundances(groupi, samplei, sample_abundance)
 
@@ -424,15 +195,15 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
             if spectrum.order == 1:
                 # adds peptides MS1 isotope envelopes
                 abundance_offset = p.offsets[groupi][samplei]
-                spectrum.add_peaks(p.scaled_rt, p.ms1_isotopes, abundance_offset)
+                spectrum.add_peaks(options, p.scaled_rt, p.ms1_isotopes, abundance_offset)
 
             elif spectrum.order == 2:
                 if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
                     abundance_offset = p.offsets[groupi][samplei]
-                    spectrum.add_peaks(p.scaled_rt, p.ms2_peaks, abundance_offset)
+                    spectrum.add_peaks(options, p.scaled_rt, p.ms2_peaks, abundance_offset)
 
         # write final spec to file
-        run.write_spec(spectrum)
+        run.write_spec(options, spectrum)
 
         # this deletes m/z and intensity arrays that aren't needed anymore
         spectrum.clear()

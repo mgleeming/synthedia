@@ -4,6 +4,7 @@ from synthedia import assembly
 
 def main(args = None):
 
+    print(sys.argv)
     parser = argparse.ArgumentParser(
         description = 'Generate DIA data from DDA MaxQuant output.'
     )
@@ -118,24 +119,39 @@ def main(args = None):
     except:
         pass
 
-    if options.config:
-        # update args from yaml
-        temp_options = options.__dict__
-        options = yaml.load(open(temp_options['config']), Loader=yaml.FullLoader)
-        options = dict(list(options.items()) + list(temp_options.items()))
-        options = temp_options
+    # want heirarchy to be
+    # user specified cli args - highest
+    # config file args
+    # argparse defaults - lowest
 
-        class dotdict():
-            def __init__(self, d):
-                for k,v in d.items(): setattr(self,k,v)
+    # want to be able to specify args in config file but also overwrite these with command line inputs
+    if options.config: # read config file if given
 
-        options = dotdict(options)
+        # argparse defaults plus user cli args
+        cmd_line_args = options.__dict__
+
+        # load config file
+        config_file_args = yaml.load(open(cmd_line_args['config']), Loader=yaml.FullLoader)
+
+        # create new options dict - config_file takes priority
+        options = dict(list(cmd_line_args.items()) + list(config_file_args.items()))
+
+        # need to overwrite config file args if specified on the cmd line
+        for arg in sys.argv:
+            if arg[0:2] == '--':
+                options[arg.replace('--','')] = cmd_line_args[arg.replace('--','')]
+
+        options = Options(options)
 
     # save init args
     with open(os.path.join(options.out_dir, '%s_simulation_args.yaml'%options.output_label), 'w') as f:
         yaml.dump(options.__dict__, f)
 
-   #assembly.assemble(options)
+    assembly.assemble(options)
+
+class Options():
+    def __init__(self, d):
+        for k,v in d.items(): setattr(self,k,v)
 
 if __name__ == '__main__':
     sys.exit(main())
