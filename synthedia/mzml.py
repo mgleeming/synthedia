@@ -1,10 +1,6 @@
 import os, copy, random, math
 from pyopenms import *
-from numba import jit
-
-@jit(nopython=True)
-def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+from .peak_models import *
 
 class MZMLReader():
     def __init__(self, file):

@@ -2,13 +2,12 @@ import os, sys, time, copy, pickle, multiprocessing
 import random, math, datetime
 import pandas as pd
 import numpy as np
-from numba import jit
 
 from . import plotting
 from .peptide import SyntheticPeptide
 from .mzml import Spectrum, MZMLWriter, MZMLReader
-
-# TODO:jj
+from .peak_models import *
+# TODO
 # 1) Acquisition schema import - Done
 # 2) Spectrum centroiding - Donej
 # 3) Automated determination of peak standard deviations - Done
@@ -24,9 +23,9 @@ from .mzml import Spectrum, MZMLWriter, MZMLReader
 # 14) Chemical noise
 # 15) Missing value plots
 
-@jit(nopython=True)
-def gaussian(x, mu, sig):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+# TODO
+# 1) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities
+# 2) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity
 
 def make_spectra(options):
     '''
