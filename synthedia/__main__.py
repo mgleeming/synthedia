@@ -4,7 +4,6 @@ from synthedia import assembly
 
 def main(args = None):
 
-    print(sys.argv)
     parser = argparse.ArgumentParser(
         description = 'Generate DIA data from DDA MaxQuant output.'
     )
@@ -80,7 +79,14 @@ def main(args = None):
                         help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
     simulation_args.add_argument( '--write_empty_spectra', action = 'store_true',
                         help = 'Write empty mass sepctra to the output data file')
-
+    simulation_args.add_argument( '--mz_peak_model', required = False, type = str, default = 'gaussian',
+                        help = 'The model used to simulate mass spectral peaks. Can be "gaussian", "exponentially_modified_gaussian" or "cauchy"')
+    simulation_args.add_argument( '--rt_peak_model', required = False, type = str, default = 'exponentially_modified_gaussian',
+                        help = 'The model used to simulate chromatographic peaks. Can be "gaussian", "exponentially_modified_gaussian" or "cauchy"')
+    simulation_args.add_argument( '--mz_emg_k', required = False, type = float, default = 2,
+                        help = 'Shape factor for exponentially modified gaussian in the mass spectral domain. Must be greater than 0. Increasing K results in more heavily tailed mass spectral peaks. This parameter is inactive unless --mz_peak_model is not set to exponentially_modified_gaussian.')
+    simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 2,
+                        help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
 
     filtering_args = parser.add_argument_group('Filtering')
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,

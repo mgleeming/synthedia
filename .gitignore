@@ -13,6 +13,7 @@ nohup*
 *.speclib
 *.pickle
 output/
+*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

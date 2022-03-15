@@ -96,10 +96,15 @@ class Spectrum():
             self.ints = copy.deepcopy(MS2_INTS)
         return
 
-    def add_peaks(self, options, peptide_scaled_rt, peaks, abundance_offset):
+    def add_peaks(self, options, p, groupi, samplei):
+
+        peptide_scaled_rt = p.scaled_rt
+        abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = gaussian(self.rt, peptide_scaled_rt, options.rt_stdev)
+        intensity_scale_factor = options.rt_peak_model(self.rt, **{
+            'mu': peptide_scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+        })
 
         # apply chromatographic instability if needed
         if options.rt_instability > 0:
@@ -110,8 +115,10 @@ class Spectrum():
         if intensity_scale_factor < options.min_peak_fraction: return
 
         if self.order == 1:
+            peaks = p.ms1_isotopes
             stdev = options.ms1_stdev
         else:
+            peaks = p.ms2_peaks
             stdev = options.ms2_stdev
 
         for peak in peaks:
@@ -121,12 +128,14 @@ class Spectrum():
             adjusted_log2_int = log_int + abundance_offset
             adjusetd_raw_int = 2 ** adjusted_log2_int
 
-            # calculating the gaussian for the full m/z range is slow
+            # calculating the peak for the full m/z range is slow
             # subset data to only a small region around the peak to speed calculation
             mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
-            peak_ints = gaussian(self.mzs[mz_mask], peak[0], stdev)
+            peak_ints = options.mz_peak_model(self.mzs[mz_mask], **{
+                'mu': peak[0], 'sig': stdev, 'emg_k': options.mz_emg_k
+            })
 
-            # scale gaussian intensities by chromatogram scaling factor
+            # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor
             peak_ints *= factor
 

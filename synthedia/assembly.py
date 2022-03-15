@@ -6,7 +6,9 @@ import numpy as np
 from . import plotting
 from .peptide import SyntheticPeptide
 from .mzml import Spectrum, MZMLWriter, MZMLReader
-from .peak_models import *
+from .peak_models import PeakModels
+
+
 # TODO
 # 1) Acquisition schema import - Done
 # 2) Spectrum centroiding - Donej
@@ -15,17 +17,15 @@ from .peak_models import *
 # 6) Decoys?
 # 7) Plots? - Done
 # 8) Quantification between multiple files - Done
-# 9) Peak tailing
+# 9) Peak tailing - Done
 # 10) Probability sample in missing
 # 11) Probability group in missing
 # 12) Probability missing increases as abundance decreases
 # 13) Add contaminant wall ions
 # 14) Chemical noise
 # 15) Missing value plots
-
-# TODO
-# 1) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities
-# 2) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity
+# 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities
+# 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity
 
 def make_spectra(options):
     '''
@@ -129,7 +129,7 @@ def read_peptides_from_mq(options):
             SyntheticPeptide(evidence_entry = evidence_row, msms_entry = msms_entry)
         )
 
-        if len(peptides) == 50:
+        if len(peptides) == 10:
             break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
@@ -190,16 +190,11 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         peptide_subset = [p for p in peptides if abs(p.scaled_rt - spectrum.rt) < 30]
 
         for p in peptide_subset:
-
             if spectrum.order == 1:
-                # adds peptides MS1 isotope envelopes
-                abundance_offset = p.offsets[groupi][samplei]
-                spectrum.add_peaks(options, p.scaled_rt, p.ms1_isotopes, abundance_offset)
-
+                spectrum.add_peaks(options, p, groupi, samplei)
             elif spectrum.order == 2:
                 if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
-                    abundance_offset = p.offsets[groupi][samplei]
-                    spectrum.add_peaks(options, p.scaled_rt, p.ms2_peaks, abundance_offset)
+                    spectrum.add_peaks(options, p, groupi, samplei)
 
         # write final spec to file
         run.write_spec(options, spectrum)
@@ -354,8 +349,12 @@ def calculate_peak_parameters(options):
     # chromatographic peak stdev
     options.rt_stdev = options.rt_peak_fwhm / factor
 
-    return options
+    # determine peak models to use
+    pm = PeakModels()
+    options.rt_peak_model = pm.get_rt_peak_model(options)
+    options.mz_peak_model = pm.get_mz_peak_model(options)
 
+    return options
 
 def simulate_isotope_patterns(*peptide_subset):
     for p in peptide_subset:
@@ -445,6 +444,9 @@ def assemble(options):
     print('Scaling retention times')
     peptides = calculate_scaled_retention_times(options, peptides)
 
+    print('Calculating retention windows')
+    #peptides = calculate_retention_windows(options, peptides)
+
     if len(peptides) == 0:
         print('Error - no peptides to write')
         print('Exiting')
@@ -469,7 +471,7 @@ def assemble(options):
         pool.join()
 
     print('Writing peptide target table')
-    write_peptide_target_table(options, peptides, spectra)
+#    write_peptide_target_table(options, peptides, spectra)
 
     if options.write_protein_fasta:
         print('Writing protein fasta file')
