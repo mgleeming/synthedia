@@ -106,36 +106,63 @@ def read_peptides_from_mq(options):
 
     counter = 0
     peptides = []
-    for i, evidence_row in evidence.iterrows():
 
-        counter += 1
-        if counter % 100 == 0:
-            print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
+    # group proteins so all peptides are given the same group abundnaces
+    for _, protein in evidence.groupby(['Proteins']):
 
-        # check if precursor out of bounds
-        if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
-            continue
+        """
+        this replaces the group and sample abundance calculation from previous
+         def generate_protein_abundances_for_mzml_files(options, peptides):
+        """
+        protein_abundances_between_groups = [
+            np.random.normal(loc = 0, scale = options.between_group_stdev) for _ in range(options.n_groups - 1)
+        ]
 
-        # filter non quantified peptides
-        if np.isnan(evidence_row['Intensity']): continue
+        sample_abundances = [
+            [
+                np.random.normal(
+                    loc = group_abundance, scale = options.within_group_stdev
+                ) for _ in range(options.samples_per_group)
+            ] for group_abundance in group_abundances
+        ]
 
-        # find matching msms entry - this cintains mz2 fragments
-        msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
 
-        # safety
-        assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
+        # group peptides from sample so all charge states of the same peptide can be given the same abundances
+        for __, peptide_ in protein.groupby(['Modified sequence']):
 
-        peptides.append(
-            SyntheticPeptide(evidence_entry = evidence_row, msms_entry = msms_entry)
-        )
+            for ___, evidence_row in evidence.iterrows():
 
-        if len(peptides) == 10:
-            break
+                counter += 1
+                if counter % 100 == 0:
+                    print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
+
+                # check if precursor out of bounds
+                if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
+                    continue
+
+                # filter non quantified peptides
+                if np.isnan(evidence_row['Intensity']): continue
+
+                # find matching msms entry - this cintains mz2 fragments
+                msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
+
+                # safety
+                assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
+
+                peptides.append(
+                    SyntheticPeptide(evidence_entry = evidence_row, msms_entry = msms_entry)
+                )
+
+                if len(peptides) == 10:
+                    break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
 def generate_protein_abundances_for_mzml_files(options, peptides):
+
+    print('DEPRECATED')
+    print('----------')
 
     # read mq input
     evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
