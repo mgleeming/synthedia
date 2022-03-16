@@ -4,10 +4,9 @@ import pandas as pd
 import numpy as np
 
 from . import plotting
-from .peptide import SyntheticPeptide
+from .peptide import SyntheticPeptide, calculate_scaled_retention_times
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
-
 
 # TODO
 # 1) Acquisition schema import - Done
@@ -67,26 +66,59 @@ def make_spectra(options):
 
     return spectra
 
+def generate_group_and_sample_abundances(options):
+
+    peptide_abundance_offsets_between_groups = [0] + [
+        np.random.normal(
+            loc = 0, scale = options.between_group_stdev
+        ) for _ in range(options.n_groups - 1)
+    ]
+
+    sample_abundance_offsets = [
+        [
+            np.random.normal(
+                loc = group_abundance_offset, scale = options.within_group_stdev
+            ) for _ in range(options.samples_per_group)
+        ] for group_abundance_offset in peptide_abundance_offsets_between_groups
+    ]
+
+    return peptide_abundance_offsets_between_groups, sample_abundance_offsets
+
 def read_peptides_from_prosit(options):
 
     # read inputs
     prosit = pd.read_csv(options.prosit, sep = ',')
 
+    counter = 0
     peptides = []
-    l = len(prosit.groupby(['StrippedPeptide','PrecursorCharge']))
-    for i, (index, precursor) in enumerate(prosit.groupby(['StrippedPeptide','PrecursorCharge'])):
-        if i % 100 == 0:
-            print('\t Constructing peptide %s of %s' %(i, l))
+    for _, peptide in prosit.groupby(['ModifiedPeptide']):
 
-        # check if precursor out of bounds
-        if (float(precursor['PrecursorMz']) < options.ms1_min_mz) or (float(precursor['PrecursorMz']) > options.ms1_max_mz):
-            continue
+        # simulate abundances
+        protein_abundances_between_groups, sample_abundances = generate_group_and_sample_abundances(options)
 
-        peptides.append( SyntheticPeptide(prosit_entry = precursor))
-        break
+        for __, precursor in peptide.iterrows():
+
+            counter += 1
+            if counter % 100 == 0:
+                print('\t Constructing peptide %s of %s' %(counter, len(prosit)))
+
+            # check if precursor out of bounds
+            if (float(precursor['PrecursorMz']) < options.ms1_min_mz) or (float(precursor['PrecursorMz']) > options.ms1_max_mz):
+                continue
+
+            peptides.append(
+                SyntheticPeptide(
+                    options,
+                    prosit_entry = precursor,
+                    peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
+                    sample_abundance_offsets = sample_abundance_offsets,
+                )
+            )
+            break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
+
 
 def read_peptides_from_mq(options):
 
@@ -95,7 +127,9 @@ def read_peptides_from_mq(options):
     evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
 
     evidence = evidence.sort_values(by = ['PEP'])
-    for filterTerm in ['REV_', 'CON_']:
+
+    # filter unwanted proteins
+    for filterTerm in options.filterTerm:
         evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
 
     evidence = evidence[evidence['PEP'] < options.mq_pep_threshold]
@@ -107,87 +141,45 @@ def read_peptides_from_mq(options):
     counter = 0
     peptides = []
 
-    # group proteins so all peptides are given the same group abundnaces
-    for _, protein in evidence.groupby(['Proteins']):
+    # group peptides from sample so all charge states of the same peptide can be given the same abundances
+    for __, peptide in evidence.groupby(['Modified sequence']):
 
-        """
-        this replaces the group and sample abundance calculation from previous
-         def generate_protein_abundances_for_mzml_files(options, peptides):
-        """
-        protein_abundances_between_groups = [
-            np.random.normal(loc = 0, scale = options.between_group_stdev) for _ in range(options.n_groups - 1)
-        ]
+        # simulate abundances
+        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
 
-        sample_abundances = [
-            [
-                np.random.normal(
-                    loc = group_abundance, scale = options.within_group_stdev
-                ) for _ in range(options.samples_per_group)
-            ] for group_abundance in group_abundances
-        ]
+        for ___, evidence_row in peptide.iterrows():
 
+            counter += 1
+            if counter % 100 == 0:
+                print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
 
-        # group peptides from sample so all charge states of the same peptide can be given the same abundances
-        for __, peptide_ in protein.groupby(['Modified sequence']):
+            # check if precursor out of bounds
+            if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
+                continue
 
-            for ___, evidence_row in evidence.iterrows():
+            # filter non quantified peptides
+            if np.isnan(evidence_row['Intensity']): continue
 
-                counter += 1
-                if counter % 100 == 0:
-                    print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
+            # find matching msms entry - this cintains mz2 fragments
+            msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
 
-                # check if precursor out of bounds
-                if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
-                    continue
+            # safety
+            assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
 
-                # filter non quantified peptides
-                if np.isnan(evidence_row['Intensity']): continue
-
-                # find matching msms entry - this cintains mz2 fragments
-                msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
-
-                # safety
-                assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
-
-                peptides.append(
-                    SyntheticPeptide(evidence_entry = evidence_row, msms_entry = msms_entry)
+            peptides.append(
+                SyntheticPeptide(
+                    options,
+                    evidence_entry = evidence_row,
+                    msms_entry = msms_entry,
+                    peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
+                    sample_abundance_offsets = sample_abundance_offsets,
                 )
+            )
 
-                if len(peptides) == 10:
-                    break
+        if len(peptides) == 10:
+            break
 
     print('\tFinished constructing %s peptides' %(len(peptides)))
-    return peptides
-
-def generate_protein_abundances_for_mzml_files(options, peptides):
-
-    print('DEPRECATED')
-    print('----------')
-
-    # read mq input
-    evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
-
-    # determine protein abundances per treatment group
-    group_abundance_dict = {p:[0] + [np.random.normal(loc = 0, scale = options.between_group_stdev) for _ in range(options.n_groups - 1)] for p in list(set(evidence['Proteins'].to_list()))}
-
-    for p in peptides:
-        group_abundances = group_abundance_dict.get(p.protein)
-        for groupi, group_abundance in enumerate(group_abundances):
-            sample_abundances = [
-                np.random.normal(
-                    loc = group_abundance, scale = options.within_group_stdev
-                ) for _ in range(options.samples_per_group)
-            ]
-            for samplei, sample_abundance in enumerate(sample_abundances):
-                p.set_abundances(groupi, samplei, sample_abundance)
-
-    return [p for p in peptides if p.abundances != None]
-
-def calculate_scaled_retention_times(options, peptides):
-
-    for p in peptides:
-        p.scale_retention_times(options)
-
     return peptides
 
 def populate_spectra(options, peptides, spectra, groupi, samplei):
@@ -236,16 +228,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
 def write_peptide_target_table(options, peptides, spectra):
 
-    def get_peptide_elution_window(p, ms1_rts):
-
-        ints = gaussian(ms1_rts, p.scaled_rt, options.rt_stdev)
-        ints *= p.intensity
-        mask = np.where(ints > options.min_peak_fraction)
-        peak_rts = ms1_rts[mask]
-
-        return min(peak_rts), max(peak_rts)
-
-    ms1_rts = np.asarray([s.rt for s in spectra])
+    ms1_rts = np.asarray([s.rt for s in spectra if s.order == 1])
 
     of1 = open( os.path.join(options.out_dir, '%s_peptide_table.tsv' %options.output_label),'wt')
 
@@ -272,7 +255,7 @@ def write_peptide_target_table(options, peptides, spectra):
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
     for p in peptides:
-        rt_min, rt_max = get_peptide_elution_window(p, ms1_rts)
+        rt_min, rt_max = p.calculate_retention_length(options, ms1_rts)
         to_write = [
             p.protein,
             p.sequence,
@@ -465,11 +448,9 @@ def assemble(options):
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print('Generating protein abundance profiles')
-    peptides = generate_protein_abundances_for_mzml_files(options, peptides)
-
-    print('Scaling retention times')
-    peptides = calculate_scaled_retention_times(options, peptides)
+    if options.rescale_rt:
+        print('Scaling retention times')
+        peptides = calculate_scaled_retention_times(options, peptides)
 
     print('Calculating retention windows')
     #peptides = calculate_retention_windows(options, peptides)
@@ -498,7 +479,7 @@ def assemble(options):
         pool.join()
 
     print('Writing peptide target table')
-#    write_peptide_target_table(options, peptides, spectra)
+    write_peptide_target_table(options, peptides, spectra)
 
     if options.write_protein_fasta:
         print('Writing protein fasta file')

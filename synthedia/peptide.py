@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from pyteomics import mass, fasta
 
 # constants
@@ -7,7 +8,14 @@ IAA = 57.02092
 
 class SyntheticPeptide():
 
-    def __init__(self, evidence_entry = None, msms_entry = None, prosit_entry = None):
+    def __init__(self,
+            options,
+            evidence_entry = None,
+            msms_entry = None,
+            prosit_entry = None,
+            peptide_abundance_offsets_between_groups = None,
+            sample_abundance_offsets = None,
+        ):
 
         if (evidence_entry is not None) and (msms_entry is not None):
             self.populate_from_mq(evidence_entry, msms_entry)
@@ -18,6 +26,11 @@ class SyntheticPeptide():
             sys.exit()
 
         self.ms1_isotopes = None
+        self.peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups
+        self.sample_abundance_offsets = sample_abundance_offsets
+
+        self.scale_retention_times(options)
+        self.set_abundances()
         return
 
     def populate_from_prosit(self, prosit_entry):
@@ -70,23 +83,34 @@ class SyntheticPeptide():
         self.scaled_rt = self.rt / options.original_run_length * options.new_run_length
         return
 
-    def set_abundances(self, group, sample, abundance_offset):
-
-        if not hasattr(self, 'abundances'):
-            self.abundances = []
-            self.offsets = []
-
-        # first sample of group - add new list
-        if sample == 0:
+    def set_abundances(self):
+        self.abundances = []
+        self.offsets = []
+        for groupi, group_offset in enumerate(self.peptide_abundance_offsets_between_groups):
             self.abundances.append([])
             self.offsets.append([])
+            for samplei, sample_offset in enumerate(self.sample_abundance_offsets[groupi]):
+                log_int = math.log2(self.intensity)
+                adjusted_log2_int = log_int + sample_offset
+                adjusetd_raw_int = 2 ** adjusted_log2_int
+                self.abundances[groupi].append(adjusetd_raw_int)
+                self.offsets[groupi].append(sample_offset)
 
-        log_int = math.log2(self.intensity)
-        adjusted_log2_int = log_int + abundance_offset
-        adjusetd_raw_int = 2 ** adjusted_log2_int
-
-        self.abundances[group].append(adjusetd_raw_int)
-        self.offsets[group].append(abundance_offset)
         return
 
+    def calculate_retention_length(self, options, ms1_rts):
+        ints = options.rt_peak_model(ms1_rts, **{
+            'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+        })
+        ints *= self.intensity
+        mask = np.where(ints > options.min_peak_fraction)
+        peak_rts = ms1_rts[mask]
+        return min(peak_rts), max(peak_rts)
+
+def calculate_scaled_retention_times(options, peptides):
+
+    for p in peptides:
+        p.scale_retention_times(options)
+
+    return peptides
 

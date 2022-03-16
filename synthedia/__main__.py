@@ -58,7 +58,6 @@ def main(args = None):
     instrument_args.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
 
-
     chromatography_args = parser.add_argument_group("Chromatography")
     chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
                         help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
@@ -87,18 +86,20 @@ def main(args = None):
                         help = 'Shape factor for exponentially modified gaussian in the mass spectral domain. Must be greater than 0. Increasing K results in more heavily tailed mass spectral peaks. This parameter is inactive unless --mz_peak_model is not set to exponentially_modified_gaussian.')
     simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 2,
                         help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
+    simulation_args.add_argument( '--rescale_rt', action = 'store_true',
+                        help = 'Calculate new retention time values. This is useful if an existing peptide file and new gradient lengths are to be simulated.')
 
     filtering_args = parser.add_argument_group('Filtering')
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
                         help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
-
+    filtering_args.add_argument('--filterTerm', required = False, type = str, action = 'append', default = ['CON_', 'REV'],
+                        help = 'Terms used to filter input maxquant lists to remove unwanted targets. For example contaminant protein can be removed by specifying "--filterTerm CON_". Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm REV_". Filters are used only for MaxQuant input types (no effect for Prosit) and are applied to the "Proteins" column of the evidence.txt table.')
 
     diann_args = parser.add_argument_group('Analysis')
     diann_args.add_argument( '--run_diann', action = 'store_true',
                         help = 'Run DIA-NN on the output data file.')
     diann_args.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8',
                         help = 'Path to DIA-NN.')
-
 
     plotting_args = parser.add_argument_group('Plotting')
     plotting_args.add_argument( '--tic', action = 'store_true',
