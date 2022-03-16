@@ -89,21 +89,30 @@ def read_peptides_from_prosit(options):
     # read inputs
     prosit = pd.read_csv(options.prosit, sep = ',')
 
+    # iRT values can be negative
+    prosit['Retention time'] = prosit['iRT']
+    min_rt = min(prosit['iRT'].tolist())
+    if min_rt < 0:
+        prosit['Retention time'] = prosit['Retention time'] + abs(min_rt)
+
+    # add rt_buffer to start of run
+    prosit['Retention time'] = prosit['Retention time'] + options.rt_buffer
+
     counter = 0
     peptides = []
     for _, peptide in prosit.groupby(['ModifiedPeptide']):
 
         # simulate abundances
-        protein_abundances_between_groups, sample_abundances = generate_group_and_sample_abundances(options)
+        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
 
-        for __, precursor in peptide.iterrows():
+        for __, precursor in peptide.groupby(['PrecursorCharge']):
 
             counter += 1
             if counter % 100 == 0:
                 print('\t Constructing peptide %s of %s' %(counter, len(prosit)))
 
             # check if precursor out of bounds
-            if (float(precursor['PrecursorMz']) < options.ms1_min_mz) or (float(precursor['PrecursorMz']) > options.ms1_max_mz):
+            if (float(precursor['PrecursorMz'].iloc[0]) < options.ms1_min_mz) or (float(precursor['PrecursorMz'].iloc[0]) > options.ms1_max_mz):
                 continue
 
             peptides.append(
@@ -125,6 +134,9 @@ def read_peptides_from_mq(options):
     # read inputs
     msms = pd.read_csv(os.path.join(options.mq_txt_dir, 'msms.txt'), sep = '\t')
     evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
+
+    # add rt_buffer to start of run
+    evidence['Retention time'] = evidence['Retention time'] + options.rt_buffer
 
     evidence = evidence.sort_values(by = ['PEP'])
 
@@ -337,7 +349,22 @@ def run_diann(input_dir):
     os.system(cmd)
     return
 
-def calculate_peak_parameters(options):
+def get_rt_range_from_input_data(options):
+
+    if options.mq_txt_dir:
+        evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
+        rts = evidence['Retention time'].tolist()
+
+    elif options.prosit:
+        prosit = pd.read_csv(options.prosit, sep = ',')
+        rts = prosit['iRT'].tolist()
+
+    # iRT values can be negative
+    rt_range = abs(max(rts) - min(rts))
+
+    return rt_range
+
+def get_extra_parameters(options):
 
     # resolution = m / dm
     # dm = m / resolution
@@ -363,6 +390,17 @@ def calculate_peak_parameters(options):
     pm = PeakModels()
     options.rt_peak_model = pm.get_rt_peak_model(options)
     options.mz_peak_model = pm.get_mz_peak_model(options)
+
+    if int(options.original_run_length) == 0:
+        # get default retention time range
+        options.original_run_length = get_rt_range_from_input_data(options)
+
+    if int(options.new_run_length) == 0:
+        # fall back to original value
+        options.new_run_length = options.original_run_length
+
+    # add buffer so peaks are not simulated on the boundaries of the acquisition
+    options.original_run_length += options.rt_buffer * 2
 
     return options
 
@@ -393,7 +431,7 @@ def assemble(options):
         pass
 
     print('Calculating peak parameters')
-    options = calculate_peak_parameters(options)
+    options = get_extra_parameters(options)
 
     options.original_run_length = options.original_run_length * 60
     options.new_run_length = options.new_run_length * 60

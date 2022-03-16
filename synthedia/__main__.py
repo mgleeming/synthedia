@@ -28,11 +28,9 @@ def main(args = None):
     io_args.add_argument( '--config', required = False, type = str, default = None,
                         help = 'Path to *.yaml config file.')
 
-
     processing_args = parser.add_argument_group("Processing")
     processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
-
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
     instrument_args.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
@@ -63,11 +61,12 @@ def main(args = None):
                         help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
     chromatography_args.add_argument( '--rt_instability', required = False, type = float, default = 20,
                         help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
-    chromatography_args.add_argument( '--original_run_length', required = False, type = float, default = 120,
-                        help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times.')
-    chromatography_args.add_argument( '--new_run_length', required = False, type = float, default = 12,
-                        help = 'Length in minutes of new data file.')
-
+    chromatography_args.add_argument( '--original_run_length', required = False, type = float, default = 0,
+                        help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times. If set to "0", the retention time range will be automatically detected from the input data.')
+    chromatography_args.add_argument( '--new_run_length', required = False, type = float, default = 0,
+                        help = 'Length in minutes of new data file. If set to "0", the retention time range of the input data will be used.')
+    chromatography_args.add_argument( '--rt_buffer', required = False, type = float, default = 5,
+                        help = 'Time (in minutes) that should be appended to the beginning and end of the retention time range of a set of input peptides. This helps ensure that peptides at the boundaries of the elution window are simulated completely')
 
     simulation_args = parser.add_argument_group('Simulation')
     simulation_args.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
@@ -105,9 +104,9 @@ def main(args = None):
     plotting_args.add_argument( '--tic', action = 'store_true',
                         help = 'Plot TIC for the generated mzML file.')
     plotting_args.add_argument( '--schema', action = 'store_true',
-                        help = 'Plot acquisition schema')
+                        help = 'Plot acquisition schema.')
     plotting_args.add_argument( '--all', action = 'store_true',
-                        help = 'Plot all graphics')
+                        help = 'Plot all graphics.')
 
     grouping_and_quant_args = parser.add_argument_group('Grouping and quantitation')
     grouping_and_quant_args.add_argument( '--n_groups', required = False, type = int, default = 1,

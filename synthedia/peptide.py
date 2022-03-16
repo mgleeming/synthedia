@@ -40,7 +40,7 @@ class SyntheticPeptide():
         self.mass = (prosit_entry['PrecursorMz'].iloc[0] * self.charge) - (self.charge * PROTON)
         self.mz = prosit_entry['PrecursorMz'].iloc[0]
 
-        self.rt = prosit_entry['iRT'].iloc[0] * 60
+        self.rt = prosit_entry['Retention time'].iloc[0] * 60
         self.protein = 'None'
 
         self.intensity = 1000000
