@@ -3,6 +3,8 @@ import os
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle, Patch
 
+from .mzml import MZMLReader
+
 def plot_tic(options):
 
     fig = Figure()

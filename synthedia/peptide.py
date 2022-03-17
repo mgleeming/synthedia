@@ -15,6 +15,8 @@ class SyntheticPeptide():
             prosit_entry = None,
             peptide_abundance_offsets_between_groups = None,
             sample_abundance_offsets = None,
+            found_in_group = None,
+            found_in_sample = None
         ):
 
         if (evidence_entry is not None) and (msms_entry is not None):
@@ -28,6 +30,9 @@ class SyntheticPeptide():
         self.ms1_isotopes = None
         self.peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups
         self.sample_abundance_offsets = sample_abundance_offsets
+
+        self.found_in_sample = found_in_sample
+        self.found_in_group = found_in_group
 
         self.scale_retention_times(options)
         self.set_abundances()
@@ -90,11 +95,16 @@ class SyntheticPeptide():
             self.abundances.append([])
             self.offsets.append([])
             for samplei, sample_offset in enumerate(self.sample_abundance_offsets[groupi]):
-                log_int = math.log2(self.intensity)
-                adjusted_log2_int = log_int + sample_offset
-                adjusetd_raw_int = 2 ** adjusted_log2_int
-                self.abundances[groupi].append(adjusetd_raw_int)
-                self.offsets[groupi].append(sample_offset)
+
+                if self.found_in_sample[groupi][samplei] == 0:
+                    self.abundances[groupi].append(0)
+                    self.offsets[groupi].append(0)
+                else:
+                    log_int = math.log2(self.intensity)
+                    adjusted_log2_int = log_int + sample_offset
+                    adjusetd_raw_int = 2 ** adjusted_log2_int
+                    self.abundances[groupi].append(adjusetd_raw_int)
+                    self.offsets[groupi].append(sample_offset)
 
         return
 

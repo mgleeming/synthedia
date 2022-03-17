@@ -17,13 +17,13 @@ from .peak_models import PeakModels
 # 7) Plots? - Done
 # 8) Quantification between multiple files - Done
 # 9) Peak tailing - Done
-# 10) Probability sample in missing
-# 11) Probability group in missing
+# 10) Probability sample in missing - Done
+# 11) Probability group in missing - Done
 # 12) Probability missing increases as abundance decreases
 # 13) Add contaminant wall ions
 # 14) Chemical noise
 # 15) Missing value plots
-# 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities
+# 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities - Done
 # 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity
 
 def make_spectra(options):
@@ -84,6 +84,23 @@ def generate_group_and_sample_abundances(options):
 
     return peptide_abundance_offsets_between_groups, sample_abundance_offsets
 
+def generate_group_and_sample_probabilities(options):
+
+    found_in_group = [1 if random.randint(0,100) >= options.prob_missing_in_group else 0 for _ in range(options.n_groups)]
+    found_in_sample = []
+    for group in found_in_group:
+
+        if group == 1:
+            found_in_sample.append([
+                1 if random.randint(0,100) >= options.prob_missing_in_sample else 0 for _ in range(options.samples_per_group)
+            ])
+        else:
+            found_in_sample.append([
+                0 for _ in range(options.samples_per_group)
+            ])
+
+    return found_in_group, found_in_sample
+
 def read_peptides_from_prosit(options):
 
     # read inputs
@@ -104,6 +121,7 @@ def read_peptides_from_prosit(options):
 
         # simulate abundances
         peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
+        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
         for __, precursor in peptide.groupby(['PrecursorCharge']):
 
@@ -121,6 +139,8 @@ def read_peptides_from_prosit(options):
                     prosit_entry = precursor,
                     peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
                     sample_abundance_offsets = sample_abundance_offsets,
+                    found_in_group = found_in_group,
+                    found_in_sample = found_in_sample,
                 )
             )
             break
@@ -158,6 +178,7 @@ def read_peptides_from_mq(options):
 
         # simulate abundances
         peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
+        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
         for ___, evidence_row in peptide.iterrows():
 
@@ -185,6 +206,8 @@ def read_peptides_from_mq(options):
                     msms_entry = msms_entry,
                     peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
                     sample_abundance_offsets = sample_abundance_offsets,
+                    found_in_group = found_in_group,
+                    found_in_sample = found_in_sample,
                 )
             )
 
@@ -221,6 +244,11 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         peptide_subset = [p for p in peptides if abs(p.scaled_rt - spectrum.rt) < 30]
 
         for p in peptide_subset:
+
+            # skip missing peptides
+            if (p.found_in_sample[groupi][samplei] == 0):
+                continue
+
             if spectrum.order == 1:
                 spectrum.add_peaks(options, p, groupi, samplei)
             elif spectrum.order == 2:
@@ -257,12 +285,22 @@ def write_peptide_target_table(options, peptides, spectra):
         'Synthetic RT End',
         'Synthetic m/z 0'
     ]
+    # precursor abundances in file
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
             to_write.append('Intensity group_%s_sample_%s' %(group, sample))
+    # precursor offsets
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
             to_write.append('Offset group_%s_sample_%s' %(group, sample))
+    # precursor found in group
+    for group in range(options.n_groups):
+        to_write.append('Found in group_%s' %(group))
+    # precursor found in sample
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Found in group_%s_sample_%s' %(group, sample))
+
 
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
@@ -281,12 +319,24 @@ def write_peptide_target_table(options, peptides, spectra):
             '%.3f' %rt_max,
             p.ms1_isotopes[0][0]
         ]
+
+        # precursor abundances in file
         for group in p.abundances:
             for sample in group:
                 to_write.append(sample)
+
+        # precursor offsets
         for group in p.offsets:
             for sample in group:
                 to_write.append(sample)
+
+        # precursor found in group
+        for group in range(options.n_groups):
+            to_write.append(p.found_in_group[group])
+
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.found_in_sample[group][sample])
 
         of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 

@@ -87,6 +87,10 @@ def main(args = None):
                         help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
     simulation_args.add_argument( '--rescale_rt', action = 'store_true',
                         help = 'Calculate new retention time values. This is useful if an existing peptide file and new gradient lengths are to be simulated.')
+    simulation_args.add_argument( '--prob_missing_in_sample', required = False, type = float, default = 0,
+                        help = 'Probability (0-100) that a peptide is missing in any given sample')
+    simulation_args.add_argument( '--prob_missing_in_group', required = False, type = float, default = 0,
+                        help = 'Probability (0-100) that a peptide is missing in an entire group')
 
     filtering_args = parser.add_argument_group('Filtering')
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
