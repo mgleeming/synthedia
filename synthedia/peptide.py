@@ -27,7 +27,7 @@ class SyntheticPeptide():
             self.populate_from_prosit(prosit_entry)
         elif msp_entry is not None:
             self.decoy = True
-            self.populate_from_msp(msp_entry)
+            self.populate_from_msp(options, *msp_entry)
         else:
             print('Insufficient data to construct peptides. Exiting')
             sys.exit()
@@ -43,15 +43,15 @@ class SyntheticPeptide():
         self.set_abundances()
         return
 
-    def populate_from_msp(self, msp_entry):
+    def populate_from_msp(self, options, msp_entry, peptide_min, peptide_max):
         self.sequence = msp_entry['NAME']
         self.formula = msp_entry['FORMULA']
         self.ms2_peaks = msp_entry['fragments']
         if len(self.ms2_peaks) > 15:
             self.ms2_peaks.sort(key=lambda x: x[1], reverse = True)
-            self.ms2_peaks = self.ms2_peaks[0:14]
+            self.ms2_peaks = self.ms2_peaks[0:options.simulate_top_n_decoy_fragments]
         self.rt = float(msp_entry['RETENTIONTIME'])
-        self.intensity = random.randint(10000,1000000)
+        self.intensity = random.randint(peptide_min, peptide_max)
         self.charge = 1
         self.mz = float(msp_entry['PRECURSORMZ'])
         self.protein = 'DECOY'

@@ -129,6 +129,8 @@ def main(args = None):
                         help = 'Path to MSP file. Note - must include retention times.')
     decoy_args.add_argument( '--num_decoys', required = False, type = int, default = 500,
                         help = 'Number of decoy peaks to simulate')
+    decoy_args.add_argument( '--simulate_top_n_decoy_fragments', required = False, type = int, default = 15,
+                        help = 'Simulate n most intense fragments of the decoy compound.')
 
     options =  parser.parse_args()
 

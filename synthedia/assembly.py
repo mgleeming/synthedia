@@ -148,7 +148,9 @@ def read_peptides_from_prosit(options):
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
-def read_decoys_from_msp(options):
+def read_decoys_from_msp(options, peptides):
+
+    peptide_intensities = [p.intensity for p in peptides]
 
     # read inputs
     lipids = []
@@ -188,6 +190,7 @@ def read_decoys_from_msp(options):
 
                     if k == 'RETENTIONTIME':
                         v = rt_steps[random.randint(0,len(rt_steps))]
+
                     lipid_dict[k] = v
                 except:
                     continue
@@ -198,7 +201,7 @@ def read_decoys_from_msp(options):
         peptides.append(
             SyntheticPeptide(
                 options,
-                msp_entry = lipid_dict,
+                msp_entry = [lipid_dict, min(peptide_intensities), max(peptide_intensities)],
                 peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
                 sample_abundance_offsets = sample_abundance_offsets,
                 found_in_group = found_in_group,
@@ -574,7 +577,7 @@ def assemble(options):
 
         if options.decoy_msp_file:
             print('Reading decoy file')
-            decoys = read_decoys_from_msp(options)
+            decoys = read_decoys_from_msp(options, peptides)
             peptides = peptides + decoys
 
         if options.num_processors == 1:
@@ -607,9 +610,6 @@ def assemble(options):
     if options.rescale_rt:
         print('Scaling retention times')
         peptides = calculate_scaled_retention_times(options, peptides)
-
-    print('Calculating retention windows')
-    #peptides = calculate_retention_windows(options, peptides)
 
     if len(peptides) == 0:
         print('Error - no peptides to write')
