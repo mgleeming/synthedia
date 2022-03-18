@@ -9,27 +9,27 @@ def main(args = None):
     )
 
     io_args = parser.add_argument_group("Input/Output")
-    io_args.add_argument( '--mq_txt_dir', required = False, type = str,
+    io_args.add_argument( '--mq_txt_dir', required = False, type = str, ## main
                         help = 'Path to MaxQuat "txt" directory.')
-    io_args.add_argument( '--prosit', required = False, type = str,
+    io_args.add_argument( '--prosit', required = False, type = str, ## main
                         help = 'Path to prosit prediction library.')
-    io_args.add_argument( '--acquisition_schema', required = False, type = str,
+    io_args.add_argument( '--acquisition_schema', required = False, type = str, ## file
                         help = 'Path to file defining MS2 acquisition schema.')
-    io_args.add_argument( '--use_existing_peptide_file', required = False, type = str,
+    io_args.add_argument( '--use_existing_peptide_file', required = False, type = str, ## skip
                         help = 'Path to an existin peptide file which will be used.')
-    io_args.add_argument( '--write_protein_fasta', action = 'store_true',
+    io_args.add_argument( '--write_protein_fasta', action = 'store_true', ## skip
                         help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options.')
-    io_args.add_argument( '--fasta', required = False, type = str,
+    io_args.add_argument( '--fasta', required = False, type = str, ## skip
                         help = 'Path to FASTA file from which protein sequences should be taken.')
-    io_args.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'),
+    io_args.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'), ## skip
                         help = 'Output directory where results should be written.')
     io_args.add_argument( '--output_label', required = False, type = str, default = 'output',
                         help = 'Prefix for output files.')
-    io_args.add_argument( '--config', required = False, type = str, default = None,
+    io_args.add_argument( '--config', required = False, type = str, default = None, ## skip
                         help = 'Path to *.yaml config file.')
 
-    processing_args = parser.add_argument_group("Processing")
-    processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
+    processing_args = parser.add_argument_group("Processing") ## skip
+    processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() , ## skip
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
@@ -68,7 +68,7 @@ def main(args = None):
     chromatography_args.add_argument( '--rt_buffer', required = False, type = float, default = 5,
                         help = 'Time (in minutes) that should be appended to the beginning and end of the retention time range of a set of input peptides. This helps ensure that peptides at the boundaries of the elution window are simulated completely')
 
-    simulation_args = parser.add_argument_group('Simulation')
+    simulation_args = parser.add_argument_group("Simulation")
     simulation_args.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
                         help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
     simulation_args.add_argument( '--ms1_min_peak_intensity', required = False, type = float, default = 100,
@@ -94,19 +94,19 @@ def main(args = None):
     simulation_args.add_argument( '--prob_missing_in_group', required = False, type = float, default = 0,
                         help = 'Probability (0-100) that a peptide is missing in an entire group')
 
-    filtering_args = parser.add_argument_group('Filtering')
+    filtering_args = parser.add_argument_group("Filtering")
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
                         help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
     filtering_args.add_argument('--filterTerm', required = False, type = str, action = 'append', default = ['CON_', 'REV'],
                         help = 'Terms used to filter input maxquant lists to remove unwanted targets. For example contaminant protein can be removed by specifying "--filterTerm CON_". Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm REV_". Filters are used only for MaxQuant input types (no effect for Prosit) and are applied to the "Proteins" column of the evidence.txt table.')
 
-    diann_args = parser.add_argument_group('Analysis')
-    diann_args.add_argument( '--run_diann', action = 'store_true',
+    diann_args = parser.add_argument_group("Analysis") ## skip
+    diann_args.add_argument( '--run_diann', action = 'store_true', ## skip
                         help = 'Run DIA-NN on the output data file.')
-    diann_args.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8',
+    diann_args.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8', ## skip
                         help = 'Path to DIA-NN.')
 
-    plotting_args = parser.add_argument_group('Plotting')
+    plotting_args = parser.add_argument_group("Plotting")
     plotting_args.add_argument( '--tic', action = 'store_true',
                         help = 'Plot TIC for the generated mzML file.')
     plotting_args.add_argument( '--schema', action = 'store_true',
@@ -114,7 +114,7 @@ def main(args = None):
     plotting_args.add_argument( '--all', action = 'store_true',
                         help = 'Plot all graphics.')
 
-    grouping_and_quant_args = parser.add_argument_group('Grouping and quantitation')
+    grouping_and_quant_args = parser.add_argument_group("Grouping and quantitation")
     grouping_and_quant_args.add_argument( '--n_groups', required = False, type = int, default = 1,
                         help = 'Number of treatment groups to simulate.')
     grouping_and_quant_args.add_argument( '--samples_per_group', required = False, type = int, default = 1,
@@ -124,8 +124,8 @@ def main(args = None):
     grouping_and_quant_args.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
                         help = 'Standard deviation of a normal distribution from which within group samples will be drawn.')
 
-    decoy_args = parser.add_argument_group('Decoys')
-    decoy_args.add_argument( '--decoy_msp_file', required = False, type = str,
+    decoy_args = parser.add_argument_group("Decoys")
+    decoy_args.add_argument( '--decoy_msp_file', required = False, type = str, ## skip
                         help = 'Path to MSP file. Note - must include retention times.')
     decoy_args.add_argument( '--num_decoys', required = False, type = int, default = 500,
                         help = 'Number of decoy peaks to simulate')
