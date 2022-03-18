@@ -71,8 +71,10 @@ def main(args = None):
     simulation_args = parser.add_argument_group('Simulation')
     simulation_args.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
                         help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
-    simulation_args.add_argument( '--min_peak_fraction', required = False, type = float, default = 0.01,
-                        help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated.')
+    simulation_args.add_argument( '--ms1_min_peak_intensity', required = False, type = float, default = 100,
+                        help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS1 spectra.')
+    simulation_args.add_argument( '--ms2_min_peak_intensity', required = False, type = float, default = 10,
+                        help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS2 spectra.')
     simulation_args.add_argument( '--centroid', action = 'store_true',
                         help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
     simulation_args.add_argument( '--write_empty_spectra', action = 'store_true',
@@ -121,6 +123,12 @@ def main(args = None):
                         help = 'Standard deviation of a normal distribution from which group means will be drawn.')
     grouping_and_quant_args.add_argument( '--within_group_stdev', required = False, type = float, default = 0.2,
                         help = 'Standard deviation of a normal distribution from which within group samples will be drawn.')
+
+    decoy_args = parser.add_argument_group('Decoys')
+    decoy_args.add_argument( '--decoy_msp_file', required = False, type = str,
+                        help = 'Path to MSP file. Note - must include retention times.')
+    decoy_args.add_argument( '--num_decoys', required = False, type = int, default = 500,
+                        help = 'Number of decoy peaks to simulate')
 
     options =  parser.parse_args()
 

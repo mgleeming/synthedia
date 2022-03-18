@@ -13,7 +13,7 @@ from .peak_models import PeakModels
 # 2) Spectrum centroiding - Donej
 # 3) Automated determination of peak standard deviations - Done
 # 4) Randomness in elution profiles - Done
-# 6) Decoys?
+# 6) Decoys? - Done
 # 7) Plots? - Done
 # 8) Quantification between multiple files - Done
 # 9) Peak tailing - Done
@@ -24,7 +24,7 @@ from .peak_models import PeakModels
 # 14) Chemical noise
 # 15) Missing value plots
 # 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities - Done
-# 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity
+# 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity - Done
 
 def make_spectra(options):
     '''
@@ -148,6 +148,69 @@ def read_peptides_from_prosit(options):
     print('\tFinished constructing %s peptides' %(len(peptides)))
     return peptides
 
+def read_decoys_from_msp(options):
+
+    # read inputs
+    lipids = []
+    new_lipid = []
+    with open(options.decoy_msp_file,'r') as if1:
+        for l in if1:
+            if l.strip() == '':
+                lipids.append(new_lipid)
+                new_lipid = []
+            else:
+                new_lipid.append(l.strip())
+
+            if len(lipids) > 10:
+                break
+    lipids = [_ for _ in lipids if 'PRECURSORTYPE: [M+H]+' in _]
+
+    counter = 0
+    peptides = []
+
+    rt_steps = np.arange(options.rt_buffer,options.new_run_length,0.001)
+
+    for l in lipids:
+
+        # simulate abundances
+        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
+        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
+
+        fragments = False
+        lipid_dict = {'fragments': []}
+        for item in l:
+            if 'Num Peaks:' in item:
+                fragments = True
+                continue
+            if not fragments:
+                try:
+                    k,v = item.split(': ')
+
+                    if k == 'RETENTIONTIME':
+                        v = rt_steps[random.randint(0,len(rt_steps))]
+                    lipid_dict[k] = v
+                except:
+                    continue
+            if fragments:
+                mz, intensity = item.split('\t')
+                lipid_dict['fragments'].append([float(mz), float(intensity)])
+
+        peptides.append(
+            SyntheticPeptide(
+                options,
+                msp_entry = lipid_dict,
+                peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
+                sample_abundance_offsets = sample_abundance_offsets,
+                found_in_group = found_in_group,
+                found_in_sample = found_in_sample,
+            )
+        )
+
+        if len(peptides) == options.num_decoys:
+            break
+
+    print('\tFinished constructing %s decoys' %(len(peptides)))
+    return peptides
 
 def read_peptides_from_mq(options):
 
@@ -508,6 +571,11 @@ def assemble(options):
             peptides = read_peptides_from_mq(options)
         elif options.prosit:
             peptides = read_peptides_from_prosit(options)
+
+        if options.decoy_msp_file:
+            print('Reading decoy file')
+            decoys = read_decoys_from_msp(options)
+            peptides = peptides + decoys
 
         if options.num_processors == 1:
             for p in peptides:

@@ -111,15 +111,14 @@ class Spectrum():
             instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
             intensity_scale_factor *= instability_factor
 
-        # make sure peak decays to 0
-        if intensity_scale_factor < options.min_peak_fraction: return
-
         if self.order == 1:
             peaks = p.ms1_isotopes
             stdev = options.ms1_stdev
+            min_peak_intensity = options.ms1_min_peak_intensity
         else:
             peaks = p.ms2_peaks
             stdev = options.ms2_stdev
+            min_peak_intensity = options.ms2_min_peak_intensity
 
         for peak in peaks:
 
@@ -140,7 +139,7 @@ class Spectrum():
             peak_ints *= factor
 
             # remove low intensity points
-            int_mask = np.where(peak_ints < options.min_peak_fraction)
+            int_mask = np.where(peak_ints < min_peak_intensity)
             peak_ints[int_mask] = 0
 
             # add new data to full spectrum intensity

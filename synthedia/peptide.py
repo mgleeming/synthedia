@@ -1,4 +1,4 @@
-import math
+import math, random
 import numpy as np
 from pyteomics import mass, fasta
 
@@ -13,16 +13,21 @@ class SyntheticPeptide():
             evidence_entry = None,
             msms_entry = None,
             prosit_entry = None,
+            msp_entry = None,
             peptide_abundance_offsets_between_groups = None,
             sample_abundance_offsets = None,
             found_in_group = None,
             found_in_sample = None
         ):
 
+        self.decoy = False
         if (evidence_entry is not None) and (msms_entry is not None):
             self.populate_from_mq(evidence_entry, msms_entry)
         elif prosit_entry is not None:
             self.populate_from_prosit(prosit_entry)
+        elif msp_entry is not None:
+            self.decoy = True
+            self.populate_from_msp(msp_entry)
         else:
             print('Insufficient data to construct peptides. Exiting')
             sys.exit()
@@ -36,6 +41,21 @@ class SyntheticPeptide():
 
         self.scale_retention_times(options)
         self.set_abundances()
+        return
+
+    def populate_from_msp(self, msp_entry):
+        self.sequence = msp_entry['NAME']
+        self.formula = msp_entry['FORMULA']
+        self.ms2_peaks = msp_entry['fragments']
+        if len(self.ms2_peaks) > 15:
+            self.ms2_peaks.sort(key=lambda x: x[1], reverse = True)
+            self.ms2_peaks = self.ms2_peaks[0:14]
+        self.rt = float(msp_entry['RETENTIONTIME'])
+        self.intensity = random.randint(10000,1000000)
+        self.charge = 1
+        self.mz = float(msp_entry['PRECURSORMZ'])
+        self.protein = 'DECOY'
+        self.mass = self.mz - PROTON
         return
 
     def populate_from_prosit(self, prosit_entry):
@@ -78,9 +98,14 @@ class SyntheticPeptide():
 
     def get_ms1_isotope_pattern(self):
         isotopes = []
-        for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
-            calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
-            isotopes.append( [calc_mz, isotope[1] * self.intensity])
+        if self.decoy:
+            for isotope in mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
+                calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
+                isotopes.append( [calc_mz, isotope[1] * self.intensity])
+        else:
+            for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
+                calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
+                isotopes.append( [calc_mz, isotope[1] * self.intensity])
         self.ms1_isotopes = isotopes
         return
 
@@ -113,7 +138,7 @@ class SyntheticPeptide():
             'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
         })
         ints *= self.intensity
-        mask = np.where(ints > options.min_peak_fraction)
+        mask = np.where(ints > options.ms2_min_peak_intensity)
         peak_rts = ms1_rts[mask]
         return min(peak_rts), max(peak_rts)
 
