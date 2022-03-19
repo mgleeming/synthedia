@@ -379,6 +379,7 @@ def write_peptide_target_table(options, peptides, spectra):
 
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
+    print(ms1_rts)
     for p in peptides:
         rt_min, rt_max = p.calculate_retention_length(options, ms1_rts)
         to_write = [
@@ -636,6 +637,17 @@ def assemble(options):
 
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+    # TODO
+    # fix this
+    # some problem with entities being modeled outside rt boundaries
+    spec_rts = [s.rt for s in spectra]
+    new_peptides = []
+    for p in peptides:
+        if p.scaled_rt > min(spec_rts) and p.scaled_rt < max(spec_rts):
+            new_peptides.append(p)
+    peptides = new_peptides
 
     if options.rescale_rt:
         logger.info('Scaling retention times')

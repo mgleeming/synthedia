@@ -137,6 +137,8 @@ class SyntheticPeptide():
         ints = options.rt_peak_model(ms1_rts, **{
             'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
         })
+        print(self.scaled_rt)
+        print(ints)
         ints *= self.intensity
         mask = np.where(ints > options.ms2_min_peak_intensity)
         peak_rts = ms1_rts[mask]
