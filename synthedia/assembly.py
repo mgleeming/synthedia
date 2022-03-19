@@ -1,5 +1,5 @@
 import os, sys, time, copy, pickle, multiprocessing
-import random, math, datetime
+import random, math, datetime, logging
 import pandas as pd
 import numpy as np
 
@@ -25,8 +25,11 @@ from .peak_models import PeakModels
 # 15) Missing value plots
 # 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities - Done
 # 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity - Done
+# 18) Handle case where multipe raw files are given in MQ input - Done
 
 def make_spectra(options):
+
+    logger = logging.getLogger("assembly_logger")
     '''
     Constructs a list of dicts that define the parameters of mass spectra to be simulated
     '''
@@ -40,8 +43,8 @@ def make_spectra(options):
                     'isolation_range': [float(row['isolation_window_lower_mz']), float(row['isolation_window_upper_mz'])]
                 })
         except:
-            print('Error parsing acquisition schema file')
-            print('Exiting')
+            logger.error('Error parsing acquisition schema file')
+            logger.error('Exiting')
             sys.exit()
     else:
         run_template.append({
@@ -103,6 +106,8 @@ def generate_group_and_sample_probabilities(options):
 
 def read_peptides_from_prosit(options):
 
+    logger = logging.getLogger("assembly_logger")
+
     # read inputs
     prosit = pd.read_csv(options.prosit, sep = ',')
 
@@ -127,7 +132,7 @@ def read_peptides_from_prosit(options):
 
             counter += 1
             if counter % 100 == 0:
-                print('\t Constructing peptide %s of %s' %(counter, len(prosit)))
+                logger.info('Constructing peptide %s of %s' %(counter, len(prosit)))
 
             # check if precursor out of bounds
             if (float(precursor['PrecursorMz'].iloc[0]) < options.ms1_min_mz) or (float(precursor['PrecursorMz'].iloc[0]) > options.ms1_max_mz):
@@ -145,10 +150,12 @@ def read_peptides_from_prosit(options):
             )
             break
 
-    print('\tFinished constructing %s peptides' %(len(peptides)))
+    logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
 def read_decoys_from_msp(options, peptides):
+
+    logger = logging.getLogger("assembly_logger")
 
     peptide_intensities = [p.intensity for p in peptides]
 
@@ -165,6 +172,7 @@ def read_decoys_from_msp(options, peptides):
 
             if len(lipids) > 10:
                 break
+
     lipids = [_ for _ in lipids if 'PRECURSORTYPE: [M+H]+' in _]
 
     counter = 0
@@ -212,14 +220,21 @@ def read_decoys_from_msp(options, peptides):
         if len(peptides) == options.num_decoys:
             break
 
-    print('\tFinished constructing %s decoys' %(len(peptides)))
+    logger.info('\tFinished constructing %s decoys' %(len(peptides)))
     return peptides
 
 def read_peptides_from_mq(options):
 
+    logger = logging.getLogger("assembly_logger")
+
     # read inputs
     msms = pd.read_csv(os.path.join(options.mq_txt_dir, 'msms.txt'), sep = '\t')
     evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
+
+    raw_files = list(set(evidence['Raw file'].tolist()))
+
+    if len(raw_files) > 1:
+        evidence = evidence[evidence['Raw file'] == raw_files[0]]
 
     # add rt_buffer to start of run
     evidence['Retention time'] = evidence['Retention time'] + options.rt_buffer
@@ -250,7 +265,7 @@ def read_peptides_from_mq(options):
 
             counter += 1
             if counter % 100 == 0:
-                print('\t Constructing peptide %s of %s' %(counter, len(evidence)))
+                logger.info('Constructing peptide %s of %s' %(counter, len(evidence)))
 
             # check if precursor out of bounds
             if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
@@ -280,10 +295,11 @@ def read_peptides_from_mq(options):
         if len(peptides) == 10:
             break
 
-    print('\tFinished constructing %s peptides' %(len(peptides)))
+    logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
 def populate_spectra(options, peptides, spectra, groupi, samplei):
+    logger = logging.getLogger("assembly_logger")
 
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
     MS1_INTS = np.zeros(len(MS1_MZS))
@@ -302,7 +318,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     for spectrumi, spectrum in enumerate(spectra):
 
         if spectrumi % 1000 == 0:
-            print('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
+            logger.info('Group %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
 
         # make spec numpy arrays on the fly to sav mem
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
@@ -411,8 +427,9 @@ def write_peptide_target_table(options, peptides, spectra):
 
 def write_target_protein_fasta(options, peptides):
 
+    logger = logging.getLogger("assembly_logger")
     if not options.fasta:
-        print('No fasta file supplied - no proteins written')
+        logger.warning('No fasta file supplied - no proteins written')
         return
 
     decoy_counter = 0
@@ -427,7 +444,7 @@ def write_target_protein_fasta(options, peptides):
                     sequences.append([ entry.description, entry.sequence ])
                     decoy_counter += 1
 
-    print('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
+    logger.info('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
     fasta.write(
         sequences, file_mode = 'w',
         output = os.path.join(options.out_dir, '%s.fasta' %options.output_label)
@@ -525,45 +542,63 @@ def simulate_isotope_patterns(*peptide_subset):
         p.get_ms1_isotope_pattern()
     return peptide_subset
 
+def configure_logging(options):
+    logger = logging.getLogger("assembly_logger")
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    fh = logging.FileHandler(os.path.join(options.out_dir, 'assembly.log'))
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    return logger
+
 def assemble(options):
 
-    start = datetime.datetime.now()
-    print('Started Synthedia %s' % start)
-    print('Executing with %s processors' %options.num_processors)
-
-    if not any([options.mq_txt_dir, options.prosit]):
-        print('Either an MaxQuant output directory or Prosit file is required')
-        print('Exiting')
-        return
-
-    if options.write_protein_fasta == True and options.fasta == None:
-        print('Synthedia was asked to write a FASTA file but no input FASTA was given')
-        print('Exiting')
-        return
+    logger = configure_logging(options)
 
     try:
         os.makedirs(options.out_dir)
     except:
         pass
 
-    print('Calculating peak parameters')
+    logger.info('Admin logged out')
+
+    start = datetime.datetime.now()
+    logger.info('Started Synthedia %s' % start)
+    logger.info('Executing with %s processors' %options.num_processors)
+
+    if not any([options.mq_txt_dir, options.prosit]):
+        logger.error('Either an MaxQuant output directory or Prosit file is required')
+        logger.error('Exiting')
+        return
+
+    if options.write_protein_fasta == True and options.fasta == None:
+        logger.error('Synthedia was asked to write a FASTA file but no input FASTA was given')
+        logger.error('Exiting')
+        return
+
+    logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
 
     options.original_run_length = options.original_run_length * 60
     options.new_run_length = options.new_run_length * 60
 
-    print('Writing outputs to %s' %options.out_dir)
+    logger.info('Writing outputs to %s' %options.out_dir)
 
-    print('Preparing spectral template')
+    logger.info('Preparing spectral template')
     spectra = make_spectra(options)
 
-    print('Constructing peptide models')
+    logger.info('Constructing peptide models')
     if options.use_existing_peptide_file:
-        print('Using existing peptide file')
+        logger.info('Using existing peptide file')
 
         if not os.path.isfile(options.use_existing_peptide_file):
-            print('The specified peptide file was not found')
-            print('Exiting')
+            logger.info('The specified peptide file was not found')
+            logger.info('Exiting')
             return
 
         with open( options.use_existing_peptide_file , 'rb') as handle:
@@ -576,7 +611,7 @@ def assemble(options):
             peptides = read_peptides_from_prosit(options)
 
         if options.decoy_msp_file:
-            print('Reading decoy file')
+            logger.info('Reading decoy file')
             decoys = read_decoys_from_msp(options, peptides)
             peptides = peptides + decoys
 
@@ -597,7 +632,7 @@ def assemble(options):
 
             # send work to procs and collect results
             peptides = []
-            print('Simulating isotope patterns')
+            logger.info('Simulating isotope patterns')
             for _ in pool.starmap(simulate_isotope_patterns, arg_sets):
                 peptides.extend(list(_))
 
@@ -608,22 +643,22 @@ def assemble(options):
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     if options.rescale_rt:
-        print('Scaling retention times')
+        logger.info('Scaling retention times')
         peptides = calculate_scaled_retention_times(options, peptides)
 
     if len(peptides) == 0:
-        print('Error - no peptides to write')
-        print('Exiting')
+        logger.error('Error - no peptides to write')
+        logger.error('Exiting')
         return
 
     if options.num_processors == 1:
 
         for groupi in range(options.n_groups):
             for samplei in range(options.samples_per_group):
-                print('Writing peptides to spectra')
+                logger.info('Writing peptides to spectra')
                 populate_spectra(options, peptides, spectra, groupi, samplei)
     else:
-        print('Writing peptides to spectra')
+        logger.info('Writing peptides to spectra')
         arg_sets = []
         for groupi in range(options.n_groups):
             for samplei in range(options.samples_per_group):
@@ -634,22 +669,22 @@ def assemble(options):
         pool.close()
         pool.join()
 
-    print('Writing peptide target table')
+    logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides, spectra)
 
     if options.write_protein_fasta:
-        print('Writing protein fasta file')
+        logger.info('Writing protein fasta file')
         write_target_protein_fasta(options, peptides)
 
     if options.run_diann:
-        print('Running DIA-NN')
+        logger.info('Running DIA-NN')
         run_diann(OUT_DIR)
 
     if (options.all == True) or (options.tic == True):
-        print('Plotting TIC')
+        logger.info('Plotting TIC')
         plotting.plot_tic(options)
 
     end = datetime.datetime.now()
-    print('Done!')
-    print('Total execution time: %s' %(end - start))
+    logger.info('Done!')
+    logger.info('Total execution time: %s' %(end - start))
     return

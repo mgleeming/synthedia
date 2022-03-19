@@ -33,17 +33,17 @@ def main(args = None):
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
-    instrument_args.add_argument( '--ms1_min_mz', required = False, type = float, default = 350,
+    instrument_args.add_argument( '--ms1_min_mz', required = False, type = int, default = 350,
                         help = 'Minimum m/z at MS1 level.')
-    instrument_args.add_argument( '--ms1_max_mz', required = False, type = float, default = 1600,
+    instrument_args.add_argument( '--ms1_max_mz', required = False, type = int, default = 1600,
                         help = 'Maximum m/z at MS1 level.')
-    instrument_args.add_argument( '--ms2_min_mz', required = False, type = float, default = 100,
+    instrument_args.add_argument( '--ms2_min_mz', required = False, type = int, default = 100,
                         help = 'Minimum m/z at MS2 level.')
-    instrument_args.add_argument( '--ms2_max_mz', required = False, type = float, default = 2000,
+    instrument_args.add_argument( '--ms2_max_mz', required = False, type = int, default = 2000,
                         help = 'Maximum m/z at MS2 level.')
-    instrument_args.add_argument( '--ms1_resolution', required = False, type = float, default = 120000,
+    instrument_args.add_argument( '--ms1_resolution', required = False, type = int, default = 120000,
                         help = 'Mass spectral resolution at MS1 level.')
-    instrument_args.add_argument( '--ms2_resolution', required = False, type = float, default = 15000,
+    instrument_args.add_argument( '--ms2_resolution', required = False, type = int, default = 15000,
                         help = 'Mass spectral resolution at MS2 level.')
     instrument_args.add_argument( '--ms1_scan_duration', required = False, type = float, default = 0.37,
                         help = 'Time in seconds taken to record an MS1 scan.')
@@ -51,7 +51,7 @@ def main(args = None):
                         help = 'Time in seconds taken to record an MS2 scan.')
     instrument_args.add_argument( '--isolation_window', required = False, type = int, default = 30,
                         help = 'Length of DIA window in m/z.')
-    instrument_args.add_argument( '--resolution_at', required = False, type = float, default = 200,
+    instrument_args.add_argument( '--resolution_at', required = False, type = int, default = 200,
                         help = 'm/z value at which resolution is defined.')
     instrument_args.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
@@ -87,7 +87,7 @@ def main(args = None):
                         help = 'Shape factor for exponentially modified gaussian in the mass spectral domain. Must be greater than 0. Increasing K results in more heavily tailed mass spectral peaks. This parameter is inactive unless --mz_peak_model is not set to exponentially_modified_gaussian.')
     simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 2,
                         help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
-    simulation_args.add_argument( '--rescale_rt', action = 'store_true',
+    simulation_args.add_argument( '--rescale_rt', action = 'store_true', ## skip
                         help = 'Calculate new retention time values. This is useful if an existing peptide file and new gradient lengths are to be simulated.')
     simulation_args.add_argument( '--prob_missing_in_sample', required = False, type = float, default = 0,
                         help = 'Probability (0-100) that a peptide is missing in any given sample')

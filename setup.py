@@ -31,7 +31,7 @@ setup(
     },
     install_requires = [
         "pandas", "numpy", "pyopenms",
-        "pyteomics", "matplotlib"
+        "pyteomics", "matplotlib", "scipy"
     ],
 )
 
