@@ -148,7 +148,6 @@ def read_peptides_from_prosit(options):
                     found_in_sample = found_in_sample,
                 )
             )
-            break
 
     logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
@@ -169,9 +168,6 @@ def read_decoys_from_msp(options, peptides):
                 new_lipid = []
             else:
                 new_lipid.append(l.strip())
-
-            if len(lipids) > 10:
-                break
 
     lipids = [_ for _ in lipids if 'PRECURSORTYPE: [M+H]+' in _]
 
@@ -292,9 +288,6 @@ def read_peptides_from_mq(options):
                 )
             )
 
-        if len(peptides) == 10:
-            break
-
     logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
@@ -318,7 +311,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     for spectrumi, spectrum in enumerate(spectra):
 
         if spectrumi % 1000 == 0:
-            logger.info('Group %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
+            logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
 
         # make spec numpy arrays on the fly to sav mem
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
@@ -558,18 +551,20 @@ def configure_logging(options):
 
 def assemble(options):
 
-    logger = configure_logging(options)
-
     try:
         os.makedirs(options.out_dir)
     except:
         pass
 
-    logger.info('Admin logged out')
+    logger = configure_logging(options)
 
     start = datetime.datetime.now()
     logger.info('Started Synthedia %s' % start)
     logger.info('Executing with %s processors' %options.num_processors)
+
+    logger.info('Config args:')
+    for k,v in options.__dict__.items():
+        logger.info('\t%s: %s' %(k,v))
 
     if not any([options.mq_txt_dir, options.prosit]):
         logger.error('Either an MaxQuant output directory or Prosit file is required')
