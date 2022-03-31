@@ -606,6 +606,7 @@ def assemble(options):
         elif options.prosit:
             peptides = read_peptides_from_prosit(options)
 
+        print(peptides[0].scaled_rt)
         if options.decoy_msp_file:
             logger.info('Reading decoy file')
             decoys = read_decoys_from_msp(options, peptides)
