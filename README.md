@@ -63,6 +63,13 @@ As an alternative to Prosit, Synthedia can read and simulate DIA data based upon
 
 Synthedia offers options to filter reverse and contaminant peptides as well as filter PSMs by Posterior Error Probability (PEP) values.
 
+
+## DIA acquisition strategies
+
+DIA-LC-MS/MS data can be acquired in many ways. The default invocation of synthedia creates non-overlapping, 30 Th windows between m/z 350 and m/z 1600. To simulate data using different DIA acquisition strategies, a file defining the acquisition schema can be supplied. An example acquisition schema file and blank template are provided in the ```templates``` directory.
+
+The acquisition schema file must define both MS1 and MS2 spectra. 
+
 ## Usage
 
 A basic invokation of synthedia using a MaxQuant input directory and accepting all other parameters as default is below:
@@ -319,4 +326,8 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
 
 
 ## Viewing mzML files
+
+The mzML files produced can be viewed in many different freely available software. The [TOPPView](https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/nightly/html/TOPP_TOPPView.html) package which is part of [OpenMS](https://www.openms.de/).
+
+![image](https://user-images.githubusercontent.com/16992583/160973872-4009c5cf-57c6-49a5-a868-edb21fa5e190.png)
 
