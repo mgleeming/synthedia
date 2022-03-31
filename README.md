@@ -42,8 +42,22 @@ To create synthetic data, synthedia requires information about peptide fragmenta
 
 #### Prosit libraries
 
+[Prosit](https://www.nature.com/articles/s41592-019-0426-7) is a machine learning-based application that predicts MS/MS fragmentation patterns for input peptide sequences. Input sequences can be arbitrary and do not necessarily need to originate from any specific organism or protein. Prosit will generate an output file that contains predicted abundances for peptide sequence ions.
+
+To create a Synthedia-compatible Prosit spectral library:
+  1. Go to https://www.proteomicsdb.org/prosit/
+  2. Navigate to 'Spectral Library'
+  3. Upload your target peptide list as described in the Prosit documentation
+  4. **IMPORTANT**: under the 'Output format' header (just prior to submitting the Prosit task), ensure that **Generic Text** is selected
+
+Once processing is complete, the resulting file can be used with Synthedia
 
 #### MaxQuant 'txt' directories
+
+As an alternative to Prosit, Synthedia can read and simulate DIA data based upon the MaxQuant processing results of a file acquired using a Data-Dependent Acquisition (DDA) strategy. In this case, peptide fragment ions are generated based on the matched ions for a PSM reported in the MaxQuant ```msms.txt``` file from the ```Masses``` and ```Intensities``` columns. Note: these are only those fragment ions that MaxQuant assigns as matching a given peptide - they may not necessarily provide a 'full' sequence coverage and may not be correctly assigned in some cases. 
+
+Synthedia offers options to filter reverse and contaminant peptides as well as filter PSMs by Posterior Error Probability (PEP) values.
+
 ## Usage
 
 ## Viewing mzML files
