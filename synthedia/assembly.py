@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from . import plotting
-from .peptide import SyntheticPeptide, calculate_scaled_retention_times
+from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 
@@ -308,8 +308,8 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         )
     )
 
-    min_rt = min([p.scaled_rt for p in peptides])
-    max_rt = max([p.scaled_rt for p in peptides])
+    min_rt = min([p.min_scaled_peak_rt for p in peptides])
+    max_rt = max([p.max_scaled_peak_rt for p in peptides])
 
     for spectrumi, spectrum in enumerate(spectra):
 
@@ -347,9 +347,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
     return
 
-def write_peptide_target_table(options, peptides, spectra):
-
-    ms1_rts = np.asarray([s.rt for s in spectra if s.order == 1])
+def write_peptide_target_table(options, peptides):
 
     of1 = open( os.path.join(options.out_dir, '%s_peptide_table.tsv' %options.output_label),'wt')
 
@@ -382,11 +380,9 @@ def write_peptide_target_table(options, peptides, spectra):
         for sample in range(options.samples_per_group):
             to_write.append('Found in group_%s_sample_%s' %(group, sample))
 
-
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
     for p in peptides:
-        rt_min, rt_max = p.calculate_retention_length(options, ms1_rts)
         to_write = [
             p.protein,
             p.sequence,
@@ -396,8 +392,8 @@ def write_peptide_target_table(options, peptides, spectra):
             p.mass,
             p.rt,
             p.scaled_rt,
-            '%.3f' %rt_min,
-            '%.3f' %rt_max,
+            '%.3f' %p.min_scaled_peak_rt,
+            '%.3f' %p.max_scaled_peak_rt,
             p.ms1_isotopes[0][0]
         ]
 
@@ -422,63 +418,6 @@ def write_peptide_target_table(options, peptides, spectra):
         of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
     of1.close()
-    return
-
-def write_target_protein_fasta(options, peptides):
-
-    logger = logging.getLogger("assembly_logger")
-    if not options.fasta:
-        logger.warning('No fasta file supplied - no proteins written')
-        return
-
-    decoy_counter = 0
-    sequences = []
-    with fasta.read(options.fasta, use_index = True) as db:
-        for i, entry in enumerate(db):
-            for p in peptides:
-                if p.sequence in entry.sequence:
-                    sequences.append([ entry.description, entry.sequence ])
-            else:
-                if decoy_counter < options.decoys:
-                    sequences.append([ entry.description, entry.sequence ])
-                    decoy_counter += 1
-
-    logger.info('Writing %s sequences including %s decoys to fasta' %(len(sequences), decoy_counter))
-    fasta.write(
-        sequences, file_mode = 'w',
-        output = os.path.join(options.out_dir, '%s.fasta' %options.output_label)
-    )
-    return
-
-def run_diann(input_dir):
-
-    options.diann_path = '/usr/diann/1.8/diann-1.8'
-    out_dir = os.path.join(input_dir,'out')
-
-    try:
-        os.makedirs(os.path.join(input_dir,'out'))
-    except:
-        pass
-
-    files = os.listdir(input_dir)
-
-    mzml_file = [_ for _ in files if '.mzml' in _.lower()]
-    options.fasta = [_ for _ in files if '.fasta' in _.lower()]
-
-    assert len(mzml_file) == 1
-    assert len(options.fasta) == 1
-
-    mzml_file = os.path.join(input_dir, mzml_file[0])
-    options.fasta = os.path.join(input_dir, options.fasta[0])
-
-    cmd = '%s ' %options.diann_path
-    cmd += '--f %s ' % mzml_file
-    cmd += '--fasta %s ' % options.fasta
-    cmd += '--out %s ' % os.path.join(out_dir, 'out.tsv')
-    cmd += '--out-lib %s ' % os.path.join(out_dir, 'out.lib.tsv')
-    cmd += '--lib --predictor  --threads 8 --verbose 3 --qvalue 0.01 --matrices --gen-spec-lib --fasta-search --min-fr-mz 200 --max-fr-mz 1800 --met-excision --cut K*,R* --missed-cleavages 1 --min-pep-len 7 --max-pep-len 30 --min-pr-mz 300 --max-pr-mz 1800 --min-pr-charge 1 --max-pr-charge 4 --unimod4 --var-mods 1 --smart-profiling --pg-level 1 --prosit --predictor'
-
-    os.system(cmd)
     return
 
 def get_rt_range_from_input_data(options):
@@ -577,11 +516,6 @@ def assemble(options):
         logger.error('Exiting')
         return
 
-    if options.write_protein_fasta == True and options.fasta == None:
-        logger.error('Synthedia was asked to write a FASTA file but no input FASTA was given')
-        logger.error('Exiting')
-        return
-
     logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
 
@@ -643,16 +577,7 @@ def assemble(options):
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-
-    # TODO
-    # fix this
-    # some problem with entities being modeled outside rt boundaries
-    spec_rts = [s.rt for s in spectra]
-    new_peptides = []
-    for p in peptides:
-        if p.scaled_rt > min(spec_rts) and p.scaled_rt < max(spec_rts):
-            new_peptides.append(p)
-    peptides = new_peptides
+    peptides = calculate_retention_lengths(options, peptides, spectra)
 
     if options.rescale_rt:
         logger.info('Scaling retention times')
@@ -664,7 +589,6 @@ def assemble(options):
         return
 
     if options.num_processors == 1:
-
         for groupi in range(options.n_groups):
             for samplei in range(options.samples_per_group):
                 logger.info('Writing peptides to spectra')
@@ -682,15 +606,7 @@ def assemble(options):
         pool.join()
 
     logger.info('Writing peptide target table')
-    write_peptide_target_table(options, peptides, spectra)
-
-    if options.write_protein_fasta:
-        logger.info('Writing protein fasta file')
-        write_target_protein_fasta(options, peptides)
-
-    if options.run_diann:
-        logger.info('Running DIA-NN')
-        run_diann(OUT_DIR)
+    write_peptide_target_table(options, peptides)
 
     if (options.all == True) or (options.tic == True):
         logger.info('Plotting TIC')

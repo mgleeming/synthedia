@@ -140,7 +140,19 @@ class SyntheticPeptide():
         ints *= self.intensity
         mask = np.where(ints > options.ms2_min_peak_intensity)
         peak_rts = ms1_rts[mask]
+
+        self.min_scaled_peak_rt = min(peak_rts)
+        self.max_scaled_peak_rt = max(peak_rts)
         return min(peak_rts), max(peak_rts)
+
+def calculate_retention_lengths(options, peptides, spectra):
+
+    ms1_rts = np.asarray([s.rt for s in spectra])
+
+    for p in peptides:
+        p.calculate_retention_length(options, ms1_rts)
+
+    return peptides
 
 def calculate_scaled_retention_times(options, peptides):
 

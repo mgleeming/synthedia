@@ -17,10 +17,6 @@ def main(args = None):
                         help = 'Path to file defining MS2 acquisition schema.')
     io_args.add_argument( '--use_existing_peptide_file', required = False, type = str, ## skip
                         help = 'Path to an existin peptide file which will be used.')
-    io_args.add_argument( '--write_protein_fasta', action = 'store_true', ## skip
-                        help = 'Write FASTA file with protein sequences for simulated peptides. If given, a FASTA file must be supplied with the --fasta options.')
-    io_args.add_argument( '--fasta', required = False, type = str, ## skip
-                        help = 'Path to FASTA file from which protein sequences should be taken.')
     io_args.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'), ## skip
                         help = 'Output directory where results should be written.')
     io_args.add_argument( '--output_label', required = False, type = str, default = 'output',
@@ -99,12 +95,6 @@ def main(args = None):
                         help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
     filtering_args.add_argument('--filterTerm', required = False, type = str, action = 'append', default = ['CON_', 'REV'],
                         help = 'Terms used to filter input maxquant lists to remove unwanted targets. For example contaminant protein can be removed by specifying "--filterTerm CON_". Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm REV_". Filters are used only for MaxQuant input types (no effect for Prosit) and are applied to the "Proteins" column of the evidence.txt table.')
-
-    diann_args = parser.add_argument_group("Analysis") ## skip
-    diann_args.add_argument( '--run_diann', action = 'store_true', ## skip
-                        help = 'Run DIA-NN on the output data file.')
-    diann_args.add_argument( '--diann_path', required = False, type = str, default = '/usr/diann/1.8/diann-1.8', ## skip
-                        help = 'Path to DIA-NN.')
 
     plotting_args = parser.add_argument_group("Plotting")
     plotting_args.add_argument( '--tic', action = 'store_true',
