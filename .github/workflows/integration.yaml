@@ -25,6 +25,7 @@ jobs:
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install synthedia
+      run: |
         pip install -e .
     - name: Test with pytest
       run: |
