@@ -4,12 +4,12 @@ on:
     branches:
       - main
       - develop
-      - test
+      - tests
   pull_request:
     branches:
       - main
       - develop
-      - test
+      - tests
 jobs:
   build:
     runs-on: ubuntu-latest
