@@ -7,7 +7,10 @@ TEST_RESOURCES = os.path.join(ROOT_DIR, 'resources')
 TEST_OUTPUTS = os.path.join(ROOT_DIR, 'test_outputs')
 
 def create_test_dir():
-    shutil.rmtree(TEST_OUTPUTS)
+    try:
+        shutil.rmtree(TEST_OUTPUTS)
+    except:
+        pass
     try:
         os.makedirs(TEST_OUTPUTS)
     except:
