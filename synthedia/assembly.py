@@ -308,7 +308,13 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         )
     )
 
+    min_rt = min([p.scaled_rt for p in peptides])
+    max_rt = max([p.scaled_rt for p in peptides])
+
     for spectrumi, spectrum in enumerate(spectra):
+
+        if (spectrum.rt < min_rt) or (spectrum.rt > max_rt):
+            continue
 
         if spectrumi % 1000 == 0:
             logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
@@ -379,7 +385,6 @@ def write_peptide_target_table(options, peptides, spectra):
 
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
-    print(ms1_rts)
     for p in peptides:
         rt_min, rt_max = p.calculate_retention_length(options, ms1_rts)
         to_write = [
@@ -486,10 +491,7 @@ def get_rt_range_from_input_data(options):
         prosit = pd.read_csv(options.prosit, sep = ',')
         rts = prosit['iRT'].tolist()
 
-    # iRT values can be negative
-    rt_range = abs(max(rts) - min(rts))
-
-    return rt_range
+    return max(rts)
 
 def get_extra_parameters(options):
 
@@ -515,6 +517,7 @@ def get_extra_parameters(options):
 
     # determine peak models to use
     pm = PeakModels()
+
     options.rt_peak_model = pm.get_rt_peak_model(options)
     options.mz_peak_model = pm.get_mz_peak_model(options)
 
@@ -540,10 +543,12 @@ def configure_logging(options):
     logger = logging.getLogger("assembly_logger")
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
     fh = logging.FileHandler(os.path.join(options.out_dir, 'assembly.log'))
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
@@ -606,7 +611,6 @@ def assemble(options):
         elif options.prosit:
             peptides = read_peptides_from_prosit(options)
 
-        print(peptides[0].scaled_rt)
         if options.decoy_msp_file:
             logger.info('Reading decoy file')
             decoys = read_decoys_from_msp(options, peptides)
