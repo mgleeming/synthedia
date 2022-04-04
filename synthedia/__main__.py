@@ -67,7 +67,7 @@ def main(args = None):
     simulation_args = parser.add_argument_group("Simulation")
     simulation_args.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
                         help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
-    simulation_args.add_argument( '--rt_clip_window', required = False, type = float, default = 2.5,
+    simulation_args.add_argument( '--rt_clip_window', required = False, type = float, default = 500,
                         help = 'Retention time window (in minutes) surrounding a chromatographic peak that should be considered when calculation elutions lengths.')
     simulation_args.add_argument( '--ms1_min_peak_intensity', required = False, type = float, default = 100,
                         help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS1 spectra.')
@@ -83,7 +83,7 @@ def main(args = None):
                         help = 'The model used to simulate chromatographic peaks. Can be "gaussian", "exponentially_modified_gaussian" or "cauchy"')
     simulation_args.add_argument( '--mz_emg_k', required = False, type = float, default = 2,
                         help = 'Shape factor for exponentially modified gaussian in the mass spectral domain. Must be greater than 0. Increasing K results in more heavily tailed mass spectral peaks. This parameter is inactive unless --mz_peak_model is not set to exponentially_modified_gaussian.')
-    simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 2,
+    simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 1,
                         help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
     simulation_args.add_argument( '--rescale_rt', action = 'store_true', ## skip
                         help = 'Calculate new retention time values. This is useful if an existing peptide file and new gradient lengths are to be simulated.')

@@ -329,7 +329,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         # make spec numpy arrays on the fly to sav mem
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        peptide_subset = [p for p in peptides if abs(p.scaled_rt - spectrum.rt) < 30]
+        peptide_subset = [p for p in peptides if all([p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt])]
 
         for p in peptide_subset:
 
