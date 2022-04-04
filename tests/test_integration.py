@@ -82,3 +82,27 @@ def test_acquisition_schema_no_MS1():
     assert n_ms1 == 0
     assert n_ms2 > 0
 
+def test_no_peptides_in_MS_range():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'ms2_max_mz': 200, 'ms1_max_mz': 361})
+        assembly.assemble(options)
+
+def test_invalid_input():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({})
+        assembly.assemble(options)
+
+def test_invalid_rt_peak_model():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'rt_peak_model': 'aaaa'})
+        assembly.assemble(options)
+
+def test_invalid_mz_peak_model():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'mz_peak_model': 'aaaa'})
+        assembly.assemble(options)
+

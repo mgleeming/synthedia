@@ -8,24 +8,14 @@ from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calcula
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 
-# TODO
-# 1) Acquisition schema import - Done
-# 2) Spectrum centroiding - Donej
-# 3) Automated determination of peak standard deviations - Done
-# 4) Randomness in elution profiles - Done
-# 6) Decoys? - Done
-# 7) Plots? - Done
-# 8) Quantification between multiple files - Done
-# 9) Peak tailing - Done
-# 10) Probability sample in missing - Done
-# 11) Probability group in missing - Done
-# 12) Probability missing increases as abundance decreases
-# 13) Add contaminant wall ions
-# 14) Chemical noise
-# 15) Missing value plots
-# 16) Make sure different peptides of the same charge state get same tailing factors, abundance ratios, dropout probabilities - Done
-# 17) Might need change RT peak simulation limits to a fixed value cutoff rather than a percentage of max intensity - Done
-# 18) Handle case where multipe raw files are given in MQ input - Done
+class NoPeptidesToSimulateError(Exception):
+    pass
+
+class IncorrectInputError(Exception):
+    pass
+
+class AcquisitionSchemaError(Exception):
+    pass
 
 def make_spectra(options):
 
@@ -43,9 +33,10 @@ def make_spectra(options):
                     'isolation_range': [float(row['isolation_window_lower_mz']), float(row['isolation_window_upper_mz'])]
                 })
         except:
-            logger.error('Error parsing acquisition schema file')
+            msg = 'Error parsing acquisition schema file'
+            logger.error(msg)
             logger.error('Exiting')
-            sys.exit()
+            raise IncorrectInputError(msg)
     else:
         run_template.append({
             'order': 1, 'length': options.ms1_scan_duration, 'isolation_range': None
@@ -57,6 +48,12 @@ def make_spectra(options):
 
     if (options.all == True) or (options.schema == True):
         plotting.plot_acquisition_schema(options, run_template)
+
+    if options.new_run_length < 0:
+        msg = 'Run length must be greater than 0 min'
+        logger.error(msg)
+        logger.error('Exiting')
+        raise AcquisitionSchemaError(msg)
 
     spectra = []
     total_run_time = 0
@@ -512,9 +509,10 @@ def assemble(options):
         logger.info('\t%s: %s' %(k,v))
 
     if not any([options.mq_txt_dir, options.prosit]):
-        logger.error('Either an MaxQuant output directory or Prosit file is required')
+        msg = 'Either an MaxQuant output directory or Prosit file is required'
+        logger.error(msg)
         logger.error('Exiting')
-        return
+        raise IncorrectInputError(msg)
 
     logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
@@ -532,9 +530,10 @@ def assemble(options):
         logger.info('Using existing peptide file')
 
         if not os.path.isfile(options.use_existing_peptide_file):
-            logger.info('The specified peptide file was not found')
+            msg = 'The specified peptide file was not found'
+            logger.info(msg)
             logger.info('Exiting')
-            return
+            raise IncorrectInputError(msg)
 
         with open( options.use_existing_peptide_file , 'rb') as handle:
             peptides = pickle.load(handle)
@@ -584,9 +583,10 @@ def assemble(options):
         peptides = calculate_scaled_retention_times(options, peptides)
 
     if len(peptides) == 0:
-        logger.error('Error - no peptides to write')
-        logger.error('Exiting')
-        return
+        msg = 'No peptides to write'
+        logger.error(msg)
+        logger.info('Exiting')
+        raise NoPeptidesToSimulateError(msg)
 
     if options.num_processors == 1:
         for groupi in range(options.n_groups):

@@ -2,6 +2,9 @@ import sys
 import numpy as np
 from scipy.stats import exponnorm, cauchy, norm
 
+class InvalidPeakModelError(Exception):
+    pass
+
 class PeakModels(object):
 
     @staticmethod
@@ -19,31 +22,31 @@ class PeakModels(object):
         return cauchy.pdf(x, kwargs['mu'], kwargs['sig'])
 
     def get_rt_peak_model(self, options):
-
         try:
             rt_peak_model = getattr(self, options.rt_peak_model)
         except AttributeError:
-            print('RT peak model selection %s is invalid. Valid options are:' %options.rt_peak_model)
+            peak_models = []
             for method in dir(self):
                 if ('__' in method) or ('get_' in method): continue
-                print('\t%s'%method)
-            print('Exiting.')
-            sys.exit()
-
+                peak_models.append(method)
+            raise InvalidPeakModelError(
+                'RT peak model selection %s is invalid. Valid options are: %s' % (
+                    options.rt_peak_model, ', '.join(peak_models))
+            )
         return rt_peak_model
 
     def get_mz_peak_model(self, options):
-
         try:
             mz_peak_model = getattr(self, options.mz_peak_model)
         except AttributeError:
-            print('MZ peak model selection %s is invalid. Valid options are:' %options.mz_peak_model)
+            peak_models = []
             for method in dir(self):
                 if ('__' in method) or ('get_' in method): continue
-                print('\t%s'%method)
-            print('Exiting.')
-            sys.exit()
-
+                peak_models.append(method)
+            raise InvalidPeakModelError(
+                'MZ peak model selection %s is invalid. Valid options are: %s' % (
+                    options.mz_peak_model, ', '.join(peak_models))
+            )
         return mz_peak_model
 
 
