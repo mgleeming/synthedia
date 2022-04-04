@@ -68,7 +68,7 @@ class SyntheticPeptide():
         self.rt = prosit_entry['Retention time'].iloc[0] * 60
         self.protein = 'None'
 
-        self.intensity = 1000000
+        self.intensity = 100000000
 
         self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
         self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]
@@ -133,24 +133,29 @@ class SyntheticPeptide():
 
         return
 
-    def calculate_retention_length(self, options, ms1_rts):
-        ints = options.rt_peak_model(ms1_rts, **{
+    def calculate_retention_length(self, options, ms_rts):
+        rt_mask = np.where(
+            (ms_rts > self.scaled_rt - options.rt_clip_window * 60)
+            &
+            (ms_rts < self.scaled_rt + options.rt_clip_window * 60)
+        )
+        ms_rts = ms_rts[rt_mask]
+        ints = options.rt_peak_model(ms_rts, **{
             'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
         })
         ints *= self.intensity
         mask = np.where(ints > options.ms2_min_peak_intensity)
-        peak_rts = ms1_rts[mask]
-
+        peak_rts = ms_rts[mask]
         self.min_scaled_peak_rt = min(peak_rts)
         self.max_scaled_peak_rt = max(peak_rts)
         return min(peak_rts), max(peak_rts)
 
 def calculate_retention_lengths(options, peptides, spectra):
 
-    ms1_rts = np.asarray([s.rt for s in spectra])
+    ms_rts = np.asarray([s.rt for s in spectra])
 
     for p in peptides:
-        p.calculate_retention_length(options, ms1_rts)
+        p.calculate_retention_length(options, ms_rts)
 
     return peptides
 

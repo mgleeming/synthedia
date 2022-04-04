@@ -17,15 +17,11 @@ class IncorrectInputError(Exception):
 class AcquisitionSchemaError(Exception):
     pass
 
-class InvalidParameterError(Exception):
-    pass
-
 def make_spectra(options):
-
-    logger = logging.getLogger("assembly_logger")
     '''
     Constructs a list of dicts that define the parameters of mass spectra to be simulated
     '''
+    logger = logging.getLogger("assembly_logger")
     run_template = []
     if options.acquisition_schema is not None:
         try:
@@ -60,7 +56,7 @@ def make_spectra(options):
 
     spectra = []
     total_run_time = 0
-    while total_run_time < options.new_run_length:
+    while total_run_time < options.new_run_length + 2 * options.rt_buffer * 60:
         for entry in run_template:
             spectra.append(
                 Spectrum( total_run_time, entry['order'], entry['isolation_range'])
@@ -91,12 +87,14 @@ def generate_group_and_sample_probabilities(options):
 
     found_in_group = [1 if random.randint(0,100) >= options.prob_missing_in_group else 0 for _ in range(options.n_groups)]
     found_in_sample = []
+
     for group in found_in_group:
 
         if group == 1:
             found_in_sample.append([
                 1 if random.randint(0,100) >= options.prob_missing_in_sample else 0 for _ in range(options.samples_per_group)
             ])
+
         else:
             found_in_sample.append([
                 0 for _ in range(options.samples_per_group)
@@ -122,6 +120,9 @@ def read_peptides_from_prosit(options):
 
     counter = 0
     peptides = []
+
+    n_groups = len(list(prosit.groupby(['ModifiedPeptide', 'PrecursorCharge'])))
+
     for _, peptide in prosit.groupby(['ModifiedPeptide']):
 
         # simulate abundances
@@ -130,9 +131,11 @@ def read_peptides_from_prosit(options):
 
         for __, precursor in peptide.groupby(['PrecursorCharge']):
 
+            if len(peptide) > 100:
+                break
             counter += 1
             if counter % 100 == 0:
-                logger.info('Constructing peptide %s of %s' %(counter, len(prosit)))
+                logger.info('Constructing peptide %s of %s' %(counter, n_groups))
 
             # check if precursor out of bounds
             if (float(precursor['PrecursorMz'].iloc[0]) < options.ms1_min_mz) or (float(precursor['PrecursorMz'].iloc[0]) > options.ms1_max_mz):
@@ -201,6 +204,10 @@ def read_decoys_from_msp(options, peptides):
             if fragments:
                 mz, intensity = item.split('\t')
                 lipid_dict['fragments'].append([float(mz), float(intensity)])
+
+        # check if precursor out of bounds
+        if (float(lipid_dict['PRECURSORMZ']) < options.ms1_min_mz) or (float(lipid_dict['PRECURSORMZ']) > options.ms1_max_mz):
+            continue
 
         peptides.append(
             SyntheticPeptide(
@@ -350,7 +357,6 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 def write_peptide_target_table(options, peptides):
 
     of1 = open( os.path.join(options.out_dir, '%s_peptide_table.tsv' %options.output_label),'wt')
-
     to_write = [
         'Protein',
         'Sequence',
@@ -420,17 +426,20 @@ def write_peptide_target_table(options, peptides):
     of1.close()
     return
 
-def get_rt_range_from_input_data(options):
+def get_original_run_length(rts):
+    if min(rts) >= 0:
+        return max(rts)
+    if min(rts) < 0:
+        return max(rts) + abs(min(rts))
 
+def get_rt_range_from_input_data(options):
     if options.mq_txt_dir:
         evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
         rts = evidence['Retention time'].tolist()
-
     elif options.prosit:
         prosit = pd.read_csv(options.prosit, sep = ',')
         rts = prosit['iRT'].tolist()
-
-    return max(rts)
+    return get_original_run_length(rts)
 
 def get_extra_parameters(options):
 
@@ -467,9 +476,6 @@ def get_extra_parameters(options):
     if int(options.new_run_length) == 0:
         # fall back to original value
         options.new_run_length = options.original_run_length
-
-    # add buffer so peaks are not simulated on the boundaries of the acquisition
-    options.original_run_length += options.rt_buffer * 2
 
     return options
 
@@ -579,6 +585,7 @@ def assemble(options):
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    logger.info('Calculating retention lengths')
     peptides = calculate_retention_lengths(options, peptides, spectra)
 
     if options.rescale_rt:
@@ -619,3 +626,5 @@ def assemble(options):
     logger.info('Done!')
     logger.info('Total execution time: %s' %(end - start))
     return
+
+
