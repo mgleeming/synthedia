@@ -68,7 +68,7 @@ def main(args = None):
     simulation_args.add_argument( '--ms_clip_window', required = False, type = float, default = 0.15,
                         help = 'm/z window surrounding an MS peak that should be considered when simulating peak intensities. For high resolution data, this normally does not need to be changed.')
     simulation_args.add_argument( '--rt_clip_window', required = False, type = float, default = 2.5,
-                        help = 'Retention time window surrounding a chromatographic peak that should be considered when calculation elutions lengths.')
+                        help = 'Retention time window (in minutes) surrounding a chromatographic peak that should be considered when calculation elutions lengths.')
     simulation_args.add_argument( '--ms1_min_peak_intensity', required = False, type = float, default = 100,
                         help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS1 spectra.')
     simulation_args.add_argument( '--ms2_min_peak_intensity', required = False, type = float, default = 10,
