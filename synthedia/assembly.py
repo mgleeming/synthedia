@@ -17,6 +17,9 @@ class IncorrectInputError(Exception):
 class AcquisitionSchemaError(Exception):
     pass
 
+class InvalidParameterError(Exception):
+    pass
+
 def make_spectra(options):
 
     logger = logging.getLogger("assembly_logger")
@@ -191,10 +194,10 @@ def read_decoys_from_msp(options, peptides):
 
                     if k == 'RETENTIONTIME':
                         v = rt_steps[random.randint(0,len(rt_steps))]
-
                     lipid_dict[k] = v
                 except:
                     continue
+
             if fragments:
                 mz, intensity = item.split('\t')
                 lipid_dict['fragments'].append([float(mz), float(intensity)])
