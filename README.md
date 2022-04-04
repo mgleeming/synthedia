@@ -39,6 +39,12 @@ Synthedia can then be invoked from the command line by:
 synthedia [COMMAND LINE ARGUMENTS]
 ```
 
+Optionally, you can run the Synthedia integration test to check that everything is working:
+```
+pip install pytest
+pytest -v
+```
+
 ## Input data types
 
 To create synthetic data, synthedia requires information about peptide fragmentation patterns and some metric as to relative retention time. These can be supplied by either a:
@@ -69,6 +75,14 @@ Synthedia offers options to filter reverse and contaminant peptides as well as f
 DIA-LC-MS/MS data can be acquired in many ways. The default invocation of synthedia creates non-overlapping, 30 Th windows between m/z 350 and m/z 1600. To simulate data using different DIA acquisition strategies, a file defining the acquisition schema can be supplied. An example acquisition schema file and blank template are provided in the ```templates``` directory.
 
 The acquisition schema file must define both MS1 and MS2 spectra. 
+
+## Decoy signals
+
+LC-MS/MS analysis of bottom-up proteomics samples can be complicated by the presence of ions derived from non-peptide sample contaminants. To mimic this, decoy ions can be simulated together with peptide signals by specifying a decoy database in NIST '.msp' format. See the section 'NIST Text Format of Individual Spectra' in [this document](https://chemdata.nist.gov/mass-spc/ms-search/docs/Ver20Man_11.pdf) for details on the .msp format.
+
+Custom .msp files can be specified or pre-prepared files can be dowloaded from [MS-DIAL](http://prime.psc.riken.jp/compms/msdial/main.html#MSP). The Synthedia web server uses the "All public MS/MS (13,303 unique compounds)" file from [MS-DIAL](http://prime.psc.riken.jp/compms/msdial/main.html#MSP).
+
+The number of decoy peaks to simulate, as well as the maximum number of fragments to simulate per decoy, can be specified throught the command line arguments ```num_decoys``` and ```simulate_top_n_decoy_fragments```.
 
 ## Usage
 
@@ -115,11 +129,11 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
                  [--acquisition_schema ACQUISITION_SCHEMA]
                  [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
-                 [--write_protein_fasta] [--fasta FASTA] [--out_dir OUT_DIR]
-                 [--output_label OUTPUT_LABEL] [--config CONFIG]
-                 [--num_processors NUM_PROCESSORS] [--ms1_min_mz MS1_MIN_MZ]
-                 [--ms1_max_mz MS1_MAX_MZ] [--ms2_min_mz MS2_MIN_MZ]
-                 [--ms2_max_mz MS2_MAX_MZ] [--ms1_resolution MS1_RESOLUTION]
+                 [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
+                 [--config CONFIG] [--num_processors NUM_PROCESSORS]
+                 [--ms1_min_mz MS1_MIN_MZ] [--ms1_max_mz MS1_MAX_MZ]
+                 [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
+                 [--ms1_resolution MS1_RESOLUTION]
                  [--ms2_resolution MS2_RESOLUTION]
                  [--ms1_scan_duration MS1_SCAN_DURATION]
                  [--ms2_scan_duration MS2_SCAN_DURATION]
@@ -140,8 +154,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                  [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
                  [--prob_missing_in_group PROB_MISSING_IN_GROUP]
                  [--mq_pep_threshold MQ_PEP_THRESHOLD]
-                 [--filterTerm FILTERTERM] [--run_diann]
-                 [--diann_path DIANN_PATH] [--tic] [--schema] [--all]
+                 [--filterTerm FILTERTERM] [--tic] [--schema] [--all]
                  [--n_groups N_GROUPS] [--samples_per_group SAMPLES_PER_GROUP]
                  [--between_group_stdev BETWEEN_GROUP_STDEV]
                  [--within_group_stdev WITHIN_GROUP_STDEV]
@@ -161,12 +174,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Path to file defining MS2 acquisition schema.
       --use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE
                             Path to an existin peptide file which will be used.
-      --write_protein_fasta
-                            Write FASTA file with protein sequences for simulated
-                            peptides. If given, a FASTA file must be supplied with
-                            the --fasta options.
-      --fasta FASTA         Path to FASTA file from which protein sequences should
-                            be taken.
       --out_dir OUT_DIR     Output directory where results should be written.
       --output_label OUTPUT_LABEL
                             Prefix for output files.
@@ -292,11 +299,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             input types (no effect for Prosit) and are applied to
                             the "Proteins" column of the evidence.txt table.
 
-    Analysis:
-      --run_diann           Run DIA-NN on the output data file.
-      --diann_path DIANN_PATH
-                            Path to DIA-NN.
-
     Plotting:
       --tic                 Plot TIC for the generated mzML file.
       --schema              Plot acquisition schema.
@@ -322,8 +324,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
                             Simulate n most intense fragments of the decoy
                             compound.
-
-
 
 ## Viewing mzML files
 
