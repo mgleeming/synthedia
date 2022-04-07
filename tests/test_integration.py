@@ -1,4 +1,8 @@
 import pytest, os, yaml, copy, shutil
+
+import pandas as pd
+import numpy as np
+
 from synthedia import assembly
 from synthedia.mzml import MZMLReader
 
@@ -31,6 +35,31 @@ def read_mzml_file(mzml_file):
         if lvl == 2:
             n_ms2 += 2
     return n_ms1, n_ms2
+
+def plot_MS1_EICe(mzml_file):
+    ll, hl = get_precursor()
+    rts, intensities, zero_intensities = [], [], []
+    for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
+        if lvl != 1: continue
+        mask = np.where((mzs > ll) & (mzs < hl))
+        rts.append(rt)
+        intensities.append(ints[mask].sum())
+
+        # check for 0 intensity everywhere else
+        zero_mask = np.zeros(mzs.shape, dtype='bool')
+        zero_mask[:] = True
+        zero_mask[mask] = False
+        zero_intensities.append(ints[zero_mask].sum())
+
+    assert sum(intensities) > 0
+    assert sum(zero_intensities) == 0
+
+def get_precursor():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    mz = peptide_table['m/z'].iloc[0]
+    ll = mz - 1
+    hl = mz + 5
+    return ll, hl
 
 def update_param(new_params):
 
@@ -106,3 +135,8 @@ def test_invalid_mz_peak_model():
         options = update_param({'mq_txt_dir': TEST_RESOURCES, 'mz_peak_model': 'aaaa'})
         assembly.assemble(options)
 
+def test_MS1_EICs():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid': True})
+    assembly.assemble(options)
+    plot_MS1_EICe(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
