@@ -266,6 +266,8 @@ def read_peptides_from_mq(options):
 
         for ___, evidence_row in peptide.iterrows():
 
+            if len(peptides) > 100: continue
+
             counter += 1
             if counter % 100 == 0:
                 logger.info('Constructing peptide %s of %s' %(counter, len(evidence)))
@@ -298,7 +300,6 @@ def read_peptides_from_mq(options):
     logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
-#@profile
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 

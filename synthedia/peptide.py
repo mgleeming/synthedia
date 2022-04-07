@@ -17,8 +17,13 @@ class Peak():
             return self.lower_limit, self.higher_limit, self.indicies
         except AttributeError:
             mz_mask = np.where((mzs > self.mz - options.ms_clip_window) & (mzs < self.mz + options.ms_clip_window))
-            self.lower_limit = mz_mask[0].min()
-            self.higher_limit = mz_mask[0].max()
+            try:
+                self.lower_limit = mz_mask[0].min()
+                self.higher_limit = mz_mask[0].max()
+            except:
+                print(self.mz)
+                print(mz_mask)
+                sys.exit()
             self.indicies = mz_mask[0]
             return self.lower_limit, self.higher_limit, self.indicies
 
@@ -56,12 +61,12 @@ class SyntheticPeptide():
 
         self.scale_retention_times(options)
         self.set_abundances()
-        self.configure_ms2_peaks()
+        self.configure_ms2_peaks(options)
         return
 
-    def configure_ms2_peaks(self):
+    def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
-            Peak(p[0], p[1]) for p in self.ms2_peaks
+            Peak(p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
         ]
         return
 
