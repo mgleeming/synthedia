@@ -131,8 +131,6 @@ def read_peptides_from_prosit(options):
 
         for __, precursor in peptide.groupby(['PrecursorCharge']):
 
-            if len(peptide) > 100:
-                break
             counter += 1
             if counter % 100 == 0:
                 logger.info('Constructing peptide %s of %s' %(counter, n_groups))
@@ -265,8 +263,6 @@ def read_peptides_from_mq(options):
         found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
         for ___, evidence_row in peptide.iterrows():
-
-            if len(peptides) > 100: continue
 
             counter += 1
             if counter % 100 == 0:
