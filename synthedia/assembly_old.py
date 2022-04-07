@@ -1,4 +1,4 @@
-import os, sys, time, copy, pickle, multiprocessing, shutil
+import os, sys, time, copy, pickle, multiprocessing
 import random, math, datetime, logging
 import pandas as pd
 import numpy as np
@@ -242,7 +242,7 @@ def read_peptides_from_mq(options):
 
     evidence = evidence.sort_values(by = ['PEP'])
 
-    # filter unwanted proteins
+   # filter unwanted proteins
     for filterTerm in options.filterTerm:
         evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
 
@@ -255,7 +255,6 @@ def read_peptides_from_mq(options):
     counter = 0
     peptides = []
 
-    evidence = evidence.sort_values(by=['Retention time'])
     # group peptides from sample so all charge states of the same peptide can be given the same abundances
     for __, peptide in evidence.groupby(['Modified sequence']):
 
@@ -264,6 +263,9 @@ def read_peptides_from_mq(options):
         found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
         for ___, evidence_row in peptide.iterrows():
+
+            if len(peptides) > 100:
+                break
 
             counter += 1
             if counter % 100 == 0:
@@ -297,59 +299,8 @@ def read_peptides_from_mq(options):
     logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
-def make_mzml_file(options, peptides, spectra, groupi, samplei):
-
+def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
-
-    # tmp directory for writing file chunks
-    path = os.path.join(
-        options.out_dir, '%s_group_%s_sample_%s.mzML.parts' %(
-            options.output_label, groupi, samplei
-        )
-    )
-
-    try:
-        shutil.rmtree(path)
-    except:
-        pass
-    try:
-        os.makedirs(path)
-    except:
-        pass
-
-    print(len(peptides))
-    for p in peptides:
-        print(p.scaled_rt)
-    print(len(spectra))
-    if options.num_processors == 1:
-        populate_spectra(options, peptides, spectra, 0, groupi, samplei, path)
-    else:
-        spec_per_worker = int(len(spectra) / options.num_processors + 1)
-        spectra_sets = []
-        for i in range(options.num_processors):
-            spectra_sets.append(
-                spectra[:spec_per_worker]
-            )
-            del spectra[:spec_per_worker]
-
-        logger.info('Writing peptides to spectra')
-        arg_sets = []
-        for spectra_set_index, spectra_set in enumerate(spectra_sets):
-            arg_sets.append([ options, peptides, spectra_set, spectra_set_index, groupi, samplei, path])
-
-        pool = multiprocessing.Pool(processes = options.num_processors)
-        pool.starmap(populate_spectra, arg_sets)
-        pool.close()
-        pool.join()
-
-    return
-
-@profile
-def populate_spectra(options, peptides, spectra, spectra_set_index, groupi, samplei, mzml_file_fragments_path):
-    logger = logging.getLogger("assembly_logger")
-
-    start = datetime.datetime.now()
-    logger.info('\tProcess %s started at %s' % (spectra_set_index, start))
 
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
     MS1_INTS = np.zeros(len(MS1_MZS))
@@ -359,30 +310,29 @@ def populate_spectra(options, peptides, spectra, spectra_set_index, groupi, samp
 
     run = MZMLWriter(
         os.path.join(
-            mzml_file_fragments_path, '%s_group_%s_sample_%s.mzML.part_%s' %(
-                options.output_label, groupi, samplei, spectra_set_index
+            options.out_dir, '%s_group_%s_sample_%s.mzML' %(
+                options.output_label, groupi, samplei
             )
         )
     )
 
-    min_spec_rt = min([s.rt for s in spectra])
-    max_spec_rt = max([s.rt for s in spectra])
+    min_rt = min([p.min_scaled_peak_rt for p in peptides])
+    max_rt = max([p.max_scaled_peak_rt for p in peptides])
 
-    last = datetime.datetime.now()
     for spectrumi, spectrum in enumerate(spectra):
 
+        if (spectrum.rt < min_rt) or (spectrum.rt > max_rt):
+            continue
+
         if spectrumi % 1000 == 0:
-            logger.info('\tProcessor %s, Group %s, Sample %s - Writing spectrum %s of %s, %s' %(spectra_set_index, groupi, samplei, spectrumi, len(spectra), datetime.datetime.now() - last))
-            last = datetime.datetime.now()
+            logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
 
         # make spec numpy arrays on the fly to sav mem
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        peptide_subset = [
-            p for p in peptides if all([p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt])
-        ]
+        peptide_subset = [p for p in peptides if all([p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt])]
 
-        for p in peptides:
+        for p in peptide_subset:
 
             # skip missing peptides
             if (p.found_in_sample[groupi][samplei] == 0):
@@ -390,7 +340,6 @@ def populate_spectra(options, peptides, spectra, spectra_set_index, groupi, samp
 
             if spectrum.order == 1:
                 spectrum.add_peaks(options, p, groupi, samplei)
-
             elif spectrum.order == 2:
                 if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
                     spectrum.add_peaks(options, p, groupi, samplei)
@@ -404,8 +353,6 @@ def populate_spectra(options, peptides, spectra, spectra_set_index, groupi, samp
     # close consumer
     run.close()
 
-    end = datetime.datetime.now()
-    logger.info('\tProcess %s finished at %s' % (spectra_set_index, end - start))
     return
 
 def write_peptide_target_table(options, peptides):
@@ -652,6 +599,7 @@ def assemble(options):
         logger.info('Exiting')
         raise NoPeptidesToSimulateError(msg)
 
+
     if not options.write_empty_spectra:
         min_rt = min([p.min_scaled_peak_rt for p in peptides])
         max_rt = max([p.max_scaled_peak_rt for p in peptides])
@@ -659,11 +607,22 @@ def assemble(options):
         spectra = [s for s in spectra if s.rt > min_rt]
         spectra = [s for s in spectra if s.rt < max_rt]
 
-    for groupi in range(options.n_groups):
-        for samplei in range(options.samples_per_group):
-            logger.info('Writing peptides to spectra')
-            make_mzml_file(options, peptides, spectra, groupi, samplei)
+    if options.num_processors == 1:
+        for groupi in range(options.n_groups):
+            for samplei in range(options.samples_per_group):
+                logger.info('Writing peptides to spectra')
+                populate_spectra(options, peptides, spectra, groupi, samplei)
+    else:
+        logger.info('Writing peptides to spectra')
+        arg_sets = []
+        for groupi in range(options.n_groups):
+            for samplei in range(options.samples_per_group):
+                arg_sets.append([ options, peptides, spectra, groupi, samplei ])
 
+        pool = multiprocessing.Pool(processes = options.num_processors)
+        pool.starmap(populate_spectra, arg_sets)
+        pool.close()
+        pool.join()
 
     logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides)

@@ -2,6 +2,9 @@ import os, copy, random, math
 from pyopenms import *
 from .peak_models import *
 
+from numba import jit
+
+
 class MZMLReader():
     def __init__(self, file):
         self.od_exp = OnDiscMSExperiment()
@@ -96,6 +99,7 @@ class Spectrum():
             self.ints = copy.deepcopy(MS2_INTS)
         return
 
+    @profile
     def add_peaks(self, options, p, groupi, samplei):
 
         peptide_scaled_rt = p.scaled_rt
@@ -115,10 +119,12 @@ class Spectrum():
             peaks = p.ms1_isotopes
             stdev = options.ms1_stdev
             min_peak_intensity = options.ms1_min_peak_intensity
+            low_idnex, high_index = 0,540
         else:
             peaks = p.ms2_peaks
             stdev = options.ms2_stdev
             min_peak_intensity = options.ms2_min_peak_intensity
+            low_idnex, high_index = 0,68
 
         for peak in peaks:
 
@@ -129,10 +135,8 @@ class Spectrum():
 
             # calculating the peak for the full m/z range is slow
             # subset data to only a small region around the peak to speed calculation
-            mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
-            peak_ints = options.mz_peak_model(self.mzs[mz_mask], **{
-                'mu': peak[0], 'sig': stdev, 'emg_k': options.mz_emg_k
-            })
+            #mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
+            peak_ints = options.mz_peak_model(self.mzs[low_idnex:high_index], **{ 'mu': peak[0], 'sig': stdev, 'emg_k': options.mz_emg_k })
 
             # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor
@@ -143,7 +147,7 @@ class Spectrum():
             peak_ints[int_mask] = 0
 
             # add new data to full spectrum intensity
-            self.ints[mz_mask] += peak_ints
+            self.ints[low_idnex:high_index] += peak_ints
 
         return
 
