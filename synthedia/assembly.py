@@ -298,6 +298,7 @@ def read_peptides_from_mq(options):
     logger.info('Finished constructing %s peptides' %(len(peptides)))
     return peptides
 
+#@profile
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
@@ -400,7 +401,7 @@ def write_peptide_target_table(options, peptides):
             p.scaled_rt,
             '%.3f' %p.min_scaled_peak_rt,
             '%.3f' %p.max_scaled_peak_rt,
-            p.ms1_isotopes[0][0]
+            p.ms1_isotopes[0].mz
         ]
 
         # precursor abundances in file

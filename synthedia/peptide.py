@@ -1,4 +1,4 @@
-import math, random
+import math, random, sys
 import numpy as np
 from pyteomics import mass, fasta
 
@@ -6,8 +6,23 @@ from pyteomics import mass, fasta
 PROTON = 1.007276
 IAA = 57.02092
 
-class SyntheticPeptide():
+class Peak():
+    def __init__(self, mz, intensity):
+        self.mz = mz
+        self.intensity = intensity
+        return
 
+    def get_limits(self, options, mzs):
+        try:
+            return self.lower_limit, self.higher_limit, self.indicies
+        except AttributeError:
+            mz_mask = np.where((mzs > self.mz - options.ms_clip_window) & (mzs < self.mz + options.ms_clip_window))
+            self.lower_limit = mz_mask[0].min()
+            self.higher_limit = mz_mask[0].max()
+            self.indicies = mz_mask[0]
+            return self.lower_limit, self.higher_limit, self.indicies
+
+class SyntheticPeptide():
     def __init__(self,
             options,
             evidence_entry = None,
@@ -41,6 +56,13 @@ class SyntheticPeptide():
 
         self.scale_retention_times(options)
         self.set_abundances()
+        self.configure_ms2_peaks()
+        return
+
+    def configure_ms2_peaks(self):
+        self.ms2_peaks = [
+            Peak(p[0], p[1]) for p in self.ms2_peaks
+        ]
         return
 
     def populate_from_msp(self, options, msp_entry, peptide_min, peptide_max):
@@ -101,11 +123,19 @@ class SyntheticPeptide():
         if self.decoy:
             for isotope in mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
-                isotopes.append( [calc_mz, isotope[1] * self.intensity])
+                isotopes.append(
+                    Peak(
+                        calc_mz, isotope[1] * self.intensity
+                    )
+                )
         else:
             for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
-                isotopes.append( [calc_mz, isotope[1] * self.intensity])
+                isotopes.append(
+                    Peak(
+                        calc_mz, isotope[1] * self.intensity
+                    )
+                )
         self.ms1_isotopes = isotopes
         return
 

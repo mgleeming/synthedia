@@ -38,9 +38,9 @@ class MZMLWriter():
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
-        mask = np.where(spec.ints > 0)
-        ints = spec.ints[mask]
-        mzs = spec.mzs[mask]
+        indicies = sorted(list(set(spec.indicies)))
+        ints = spec.ints[indicies]
+        mzs = spec.mzs[indicies]
 
         if options.write_empty_spectra == False:
             if len(ints) > 0:
@@ -79,7 +79,7 @@ class Spectrum():
     def __init__(self, rt, order, isolation_range):
         self.rt = rt
         self.order = order
-
+        self.indicies = []
         if isolation_range:
             self.isolation_ll = isolation_range[0]
             self.isolation_hl = isolation_range[1]
@@ -122,16 +122,18 @@ class Spectrum():
 
         for peak in peaks:
 
+            lower_limit, higher_limit, indicies = peak.get_limits(options, self.mzs)
+            self.indicies.extend(indicies)
+
             # apply offset to peak intensity
-            log_int = math.log2(peak[1])
+            log_int = math.log2(peak.intensity)
             adjusted_log2_int = log_int + abundance_offset
             adjusetd_raw_int = 2 ** adjusted_log2_int
 
             # calculating the peak for the full m/z range is slow
             # subset data to only a small region around the peak to speed calculation
-            mz_mask = np.where((self.mzs > peak[0] - options.ms_clip_window) & (self.mzs < peak[0] + options.ms_clip_window))
-            peak_ints = options.mz_peak_model(self.mzs[mz_mask], **{
-                'mu': peak[0], 'sig': stdev, 'emg_k': options.mz_emg_k
+            peak_ints = options.mz_peak_model(self.mzs[lower_limit:higher_limit], **{
+                'mu': peak.mz, 'sig': stdev, 'emg_k': options.mz_emg_k
             })
 
             # scale peak intensities by chromatogram scaling factor
@@ -143,7 +145,7 @@ class Spectrum():
             peak_ints[int_mask] = 0
 
             # add new data to full spectrum intensity
-            self.ints[mz_mask] += peak_ints
+            self.ints[lower_limit:higher_limit] += peak_ints
 
         return
 
@@ -152,5 +154,3 @@ class Spectrum():
         del self.mzs
         del self.ints
         return
-
-
