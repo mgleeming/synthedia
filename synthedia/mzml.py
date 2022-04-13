@@ -143,7 +143,7 @@ class Spectrum():
 
                 peak.set_peak_intensities(options, peak_ints)
             else:
-                peak_ints = peak.peak_intensities
+                peak_ints = copy.deepcopy(peak.peak_intensities)
 
             # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor
