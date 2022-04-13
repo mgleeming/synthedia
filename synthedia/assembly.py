@@ -556,6 +556,7 @@ def assemble(options):
             decoys = read_decoys_from_msp(options, peptides)
             peptides = peptides + decoys
 
+        logger.info('Simulating isotope patterns')
         if options.num_processors == 1:
             for p in peptides:
                 p.get_ms1_isotope_pattern()
@@ -573,7 +574,6 @@ def assemble(options):
 
             # send work to procs and collect results
             peptides = []
-            logger.info('Simulating isotope patterns')
             for _ in pool.starmap(simulate_isotope_patterns, arg_sets):
                 peptides.extend(list(_))
 
@@ -583,12 +583,12 @@ def assemble(options):
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    logger.info('Calculating retention lengths')
-    peptides = calculate_retention_lengths(options, peptides, spectra)
-
     if options.rescale_rt:
         logger.info('Scaling retention times')
         peptides = calculate_scaled_retention_times(options, peptides)
+
+    logger.info('Calculating retention lengths')
+    peptides = calculate_retention_lengths(options, peptides, spectra)
 
     if len(peptides) == 0:
         msg = 'No peptides to write'

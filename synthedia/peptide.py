@@ -170,11 +170,12 @@ class SyntheticPeptide():
 
     def calculate_retention_length(self, options, ms_rts):
         rt_mask = np.where(
-            (ms_rts > self.scaled_rt - (options.rt_clip_window * 60))
+            (ms_rts > self.scaled_rt - options.rt_clip_window)
             &
-            (ms_rts < self.scaled_rt + (options.rt_clip_window * 60))
+            (ms_rts < self.scaled_rt + options.rt_clip_window)
         )
         ms_rts = ms_rts[rt_mask]
+
         ints = options.rt_peak_model(ms_rts, **{
             'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
         })
