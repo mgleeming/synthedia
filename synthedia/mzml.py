@@ -1,4 +1,4 @@
-import os, copy, random, math
+import os, copy, random, math, sys
 from pyopenms import *
 from .peak_models import *
 
@@ -90,10 +90,13 @@ class Spectrum():
         # much faster than creating a new array for every scan
         if self.order == 1:
             self.mzs = MS1_MZS
-            self.ints = copy.deepcopy(MS1_INTS)
+            #self.ints = copy.deepcopy(MS1_INTS)
+            self.ints = np.zeros(len(MS1_INTS))
         else:
             self.mzs = MS2_MZS
-            self.ints = copy.deepcopy(MS2_INTS)
+            #self.ints = copy.deepcopy(MS2_INTS)
+            self.ints = np.zeros(len(MS2_INTS))
+
         return
 
     def add_peaks(self, options, p, groupi, samplei):
@@ -130,11 +133,17 @@ class Spectrum():
             adjusted_log2_int = log_int + abundance_offset
             adjusetd_raw_int = 2 ** adjusted_log2_int
 
-            # calculating the peak for the full m/z range is slow
-            # subset data to only a small region around the peak to speed calculation
-            peak_ints = options.mz_peak_model(self.mzs[lower_limit:higher_limit], **{
-                'mu': peak.mz, 'sig': stdev, 'emg_k': options.mz_emg_k
-            })
+            if not hasattr(peak, 'peak_intensities'):
+
+                # calculating the peak for the full m/z range is slow
+                # subset data to only a small region around the peak to speed calculation
+                peak_ints = options.mz_peak_model(self.mzs[lower_limit:higher_limit], **{
+                    'mu': peak.mz, 'sig': stdev, 'emg_k': options.mz_emg_k
+                })
+
+                peak.set_peak_intensities(options, peak_ints)
+            else:
+                peak_ints = peak.peak_intensities
 
             # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor
@@ -153,4 +162,5 @@ class Spectrum():
         # save memory
         del self.mzs
         del self.ints
+        del self.indicies
         return

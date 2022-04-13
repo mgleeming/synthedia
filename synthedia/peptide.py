@@ -27,6 +27,9 @@ class Peak():
             self.indicies = mz_mask[0]
             return self.lower_limit, self.higher_limit, self.indicies
 
+    def set_peak_intensities(self, options, peak_intensities):
+        self.peak_intensities = peak_intensities
+
 class SyntheticPeptide():
     def __init__(self,
             options,

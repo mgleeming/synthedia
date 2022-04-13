@@ -300,10 +300,10 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
-    MS1_INTS = np.zeros(len(MS1_MZS))
+    MS1_INTS = np.zeros(len(MS1_MZS), dtype = int)
 
     MS2_MZS = np.arange(options.ms2_min_mz, options.ms2_max_mz, options.ms2_point_diff)
-    MS2_INTS = np.zeros(len(MS2_MZS))
+    MS2_INTS = np.zeros(len(MS2_MZS), dtype = int)
 
     run = MZMLWriter(
         os.path.join(
