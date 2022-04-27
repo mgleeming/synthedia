@@ -30,13 +30,34 @@ class MZMLReader():
 
 class MZMLWriter():
 
-    def __init__(self, out_file):
+    def __init__(self, out_file, n_spectra):
+        self.n_spectra = n_spectra
         self.consumer = PlainMSDataWritingConsumer(out_file)
+        self.consumer.setExpectedSize(n_spectra,0)
+
         self.n_spec_written = 0
         return
 
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
+
+        # Add scan metadata
+        # - some software will crash reading the file without this
+        instrument_settings = InstrumentSettings()
+        instrument_settings.setPolarity(1)
+
+        scan_window = ScanWindow()
+
+        if spec.order == 1:
+            scan_window.begin = options.ms1_min_mz
+            scan_window.end = options.ms1_max_mz
+        elif spec.order == 2:
+            scan_window.begin = options.ms2_min_mz
+            scan_window.end = options.ms2_max_mz
+
+        instrument_settings.setScanWindows([scan_window])
+
+        spec_to_write.setInstrumentSettings( instrument_settings)
 
         indicies = sorted(list(set(spec.indicies)))
         ints = spec.ints[indicies]
@@ -55,6 +76,9 @@ class MZMLWriter():
             centroided_spectrum = MSSpectrum()
             PeakPickerHiRes().pick(spec_to_write, centroided_spectrum)
             spec_to_write = centroided_spectrum
+            spec_to_write.setType(1)
+        else:
+            spec_to_write.setType(2)
 
         spec_to_write.setRT(spec.rt)
         spec_to_write.setMSLevel(spec.order)
@@ -62,9 +86,12 @@ class MZMLWriter():
         if spec.order == 2:
             p = Precursor()
             p.setMZ((spec.isolation_hl + spec.isolation_ll) / 2)
-            p.setIsolationWindowLowerOffset(spec.isolation_ll)
-            p.setIsolationWindowUpperOffset(spec.isolation_hl)
+            p.setIsolationWindowLowerOffset(spec.lower_offset)
+            p.setIsolationWindowUpperOffset(spec.upper_offset)
+
             spec_to_write.setPrecursors( [p] )
+
+        spec_to_write.updateRanges()
 
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1
@@ -80,9 +107,13 @@ class Spectrum():
         self.rt = rt
         self.order = order
         self.indicies = []
+
         if isolation_range:
             self.isolation_ll = isolation_range[0]
             self.isolation_hl = isolation_range[1]
+
+            self.lower_offset = (isolation_range[1] - isolation_range[0]) / 2
+            self.upper_offset = (isolation_range[1] - isolation_range[0]) / 2
 
         return
 
@@ -90,13 +121,10 @@ class Spectrum():
         # much faster than creating a new array for every scan
         if self.order == 1:
             self.mzs = MS1_MZS
-            #self.ints = copy.deepcopy(MS1_INTS)
             self.ints = np.zeros(len(MS1_INTS))
         else:
             self.mzs = MS2_MZS
-            #self.ints = copy.deepcopy(MS2_INTS)
             self.ints = np.zeros(len(MS2_INTS))
-
         return
 
     def add_peaks(self, options, p, groupi, samplei):

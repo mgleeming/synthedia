@@ -310,7 +310,8 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
             options.out_dir, '%s_group_%s_sample_%s.mzML' %(
                 options.output_label, groupi, samplei
             )
-        )
+        ),
+        len(spectra)
     )
 
     min_rt = min([p.min_scaled_peak_rt for p in peptides])
@@ -322,12 +323,18 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
             continue
 
         if spectrumi % 1000 == 0:
-            logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(groupi, samplei, spectrumi, len(spectra)))
+            logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(
+                groupi, samplei, spectrumi, len(spectra))
+            )
 
         # make spec numpy arrays on the fly to sav mem
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        peptide_subset = [p for p in peptides if all([p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt])]
+        peptide_subset = [
+            p for p in peptides if all(
+                [p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt]
+            )
+        ]
 
         for p in peptide_subset:
 
