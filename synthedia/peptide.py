@@ -1,4 +1,4 @@
-import math, random, sys
+import math, random, sys, copy
 import numpy as np
 from pyteomics import mass, fasta
 
@@ -29,6 +29,9 @@ class Peak():
 
     def set_peak_intensities(self, options, peak_intensities):
         self.peak_intensities = peak_intensities
+
+    def get_peak_intensities(self):
+        return copy.deepcopy(self.peak_intensities)
 
 class SyntheticPeptide():
     def __init__(self,
