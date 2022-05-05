@@ -41,23 +41,6 @@ class MZMLWriter():
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
-        # Add scan metadata
-        # - some software will crash reading the file without this
-        instrument_settings = InstrumentSettings()
-        instrument_settings.setPolarity(1)
-
-        scan_window = ScanWindow()
-
-        if spec.order == 1:
-            scan_window.begin = options.ms1_min_mz
-            scan_window.end = options.ms1_max_mz
-        elif spec.order == 2:
-            scan_window.begin = options.ms2_min_mz
-            scan_window.end = options.ms2_max_mz
-
-        instrument_settings.setScanWindows([scan_window])
-
-        spec_to_write.setInstrumentSettings( instrument_settings)
 
         indicies = sorted(list(set(spec.indicies)))
         ints = spec.ints[indicies]
@@ -92,6 +75,29 @@ class MZMLWriter():
             spec_to_write.setPrecursors( [p] )
 
         spec_to_write.updateRanges()
+
+        # Add scan metadata
+        # - some software will crash reading the file without this
+        instrument_settings = InstrumentSettings()
+        instrument_settings.setPolarity(1)
+
+        scan_window = ScanWindow()
+
+        if spec.order == 1:
+            scan_window.begin = options.ms1_min_mz
+            scan_window.end = options.ms1_max_mz
+        elif spec.order == 2:
+            scan_window.begin = options.ms2_min_mz
+            scan_window.end = options.ms2_max_mz
+
+        instrument_settings.setScanWindows([scan_window])
+
+        spec_to_write.setInstrumentSettings( instrument_settings)
+
+        if spec.order == 2:
+            if len(spec_to_write.get_peaks()[0]) == 0:
+                del spec_to_write
+                return
 
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1
