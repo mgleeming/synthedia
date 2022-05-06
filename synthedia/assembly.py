@@ -327,7 +327,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
                 groupi, samplei, spectrumi, len(spectra))
             )
 
-        # make spec numpy arrays on the fly to sav mem
+        # make spec numpy arrays on the fly to save memory
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
         peptide_subset = [
@@ -390,6 +390,14 @@ def write_peptide_target_table(options, peptides):
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
             to_write.append('Found in group_%s_sample_%s' %(group, sample))
+    # MS1 points per peak
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('MS1 chromatographic points group_%s_sample_%s' %(group, sample))
+    # MS2 points per peak
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('MS2 chromatographic points group_%s_sample_%s' %(group, sample))
 
     of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
@@ -425,6 +433,16 @@ def write_peptide_target_table(options, peptides):
         for group in range(options.n_groups):
             for sample in range(options.samples_per_group):
                 to_write.append(p.found_in_sample[group][sample])
+
+        # points per MS1 peak
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_points_per_peak(group, sample, 1))
+
+        # points per MS2 peak
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_points_per_peak(group, sample, 2))
 
         of1.write('%s\n' %'\t'.join([str(_) for _ in to_write]))
 
@@ -564,28 +582,8 @@ def assemble(options):
             peptides = peptides + decoys
 
         logger.info('Simulating isotope patterns')
-        if options.num_processors == 1:
-            for p in peptides:
-                p.get_ms1_isotope_pattern()
-        else:
-            pool = multiprocessing.Pool(processes = options.num_processors)
-
-            # split work into equal sized lists
-            arg_sets = [[] for _ in range(options.num_processors)]
-            counter = 0
-            for p in peptides:
-                arg_sets[counter].append(p)
-                counter += 1
-                if counter == options.num_processors:
-                    counter = 0
-
-            # send work to procs and collect results
-            peptides = []
-            for _ in pool.starmap(simulate_isotope_patterns, arg_sets):
-                peptides.extend(list(_))
-
-            pool.close()
-            pool.join()
+        for p in peptides:
+            p.get_ms1_isotope_pattern()
 
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -603,22 +601,10 @@ def assemble(options):
         logger.info('Exiting')
         raise NoPeptidesToSimulateError(msg)
 
-    if options.num_processors == 1:
-        for groupi in range(options.n_groups):
-            for samplei in range(options.samples_per_group):
-                logger.info('Writing peptides to spectra')
-                populate_spectra(options, peptides, spectra, groupi, samplei)
-    else:
-        logger.info('Writing peptides to spectra')
-        arg_sets = []
-        for groupi in range(options.n_groups):
-            for samplei in range(options.samples_per_group):
-                arg_sets.append([ options, peptides, spectra, groupi, samplei ])
-
-        pool = multiprocessing.Pool(processes = options.num_processors)
-        pool.starmap(populate_spectra, arg_sets)
-        pool.close()
-        pool.join()
+    for groupi in range(options.n_groups):
+        for samplei in range(options.samples_per_group):
+            logger.info('Writing peptides to spectra')
+            populate_spectra(options, peptides, spectra, groupi, samplei)
 
     logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides)

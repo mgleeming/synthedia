@@ -157,7 +157,7 @@ class Spectrum():
             stdev = options.ms2_stdev
             min_peak_intensity = options.ms2_min_peak_intensity
 
-        for peak in peaks:
+        for peaki, peak in enumerate(peaks):
 
             lower_limit, higher_limit, indicies = peak.get_limits(options, self.mzs)
             self.indicies.extend(indicies)
@@ -182,6 +182,13 @@ class Spectrum():
             # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor
             peak_ints *= factor
+
+            # in the case of MS1 spectra - increment only for one isotope
+            # in the case of MS2 spectra - increment only for one fragment
+            if peaki == 0:
+                # track the number of data points per peak
+                if max(peak_ints) > 0:
+                    p.increment_points_per_peak_dict(groupi, samplei, self.order)
 
             # remove low intensity points
             int_mask = np.where(peak_ints < min_peak_intensity)

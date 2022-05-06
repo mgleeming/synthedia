@@ -53,7 +53,7 @@ def main(args = None):
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
 
     chromatography_args = parser.add_argument_group("Chromatography")
-    chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 7,
+    chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 4,
                         help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
     chromatography_args.add_argument( '--rt_instability', required = False, type = float, default = 20,
                         help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')

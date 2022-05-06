@@ -16,19 +16,22 @@ class Peak():
         try:
             return self.lower_limit, self.higher_limit, self.indicies
         except AttributeError:
-            mz_mask = np.where((mzs > self.mz - options.ms_clip_window) & (mzs < self.mz + options.ms_clip_window))
+            mz_mask = np.where(
+                (mzs > self.mz - options.ms_clip_window)
+                &
+                (mzs < self.mz + options.ms_clip_window)
+            )
             try:
                 self.lower_limit = mz_mask[0].min()
                 self.higher_limit = mz_mask[0].max()
             except:
-                print(self.mz)
-                print(mz_mask)
                 sys.exit()
             self.indicies = mz_mask[0]
             return self.lower_limit, self.higher_limit, self.indicies
 
     def set_peak_intensities(self, options, peak_intensities):
         self.peak_intensities = peak_intensities
+        return
 
     def get_peak_intensities(self):
         return copy.deepcopy(self.peak_intensities)
@@ -68,7 +71,24 @@ class SyntheticPeptide():
         self.scale_retention_times(options)
         self.set_abundances()
         self.configure_ms2_peaks(options)
+        self.make_points_per_peak_dict(options)
         return
+
+    def make_points_per_peak_dict(self, options):
+        self.points_per_peak_dict = {}
+        for groupi in range(options.n_groups):
+            for samplei in range(options.samples_per_group):
+                for ms_level in [1,2]:
+                    self.points_per_peak_dict['%s_%s_%s'%(groupi, samplei, ms_level)] = 0
+        return
+
+    def increment_points_per_peak_dict(self, groupi, samplei, ms_level):
+        self.points_per_peak_dict['%s_%s_%s'%(groupi, samplei, ms_level)] += 1
+        return
+
+    def get_points_per_peak(self, groupi, samplei, ms_level):
+        print(self.points_per_peak_dict)
+        return self.points_per_peak_dict['%s_%s_%s'%(groupi, samplei, ms_level)]
 
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
