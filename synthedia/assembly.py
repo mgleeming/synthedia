@@ -605,7 +605,7 @@ def assemble(options):
 
         logger.info('Simulating isotope patterns')
         for p in peptides:
-            p.get_ms1_isotope_pattern()
+            p.get_ms1_isotope_pattern(options)
 
         with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
             pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
