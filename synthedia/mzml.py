@@ -112,7 +112,6 @@ class Spectrum():
     def __init__(self, rt, order, isolation_range):
         self.rt = rt
         self.order = order
-        self.indicies = []
 
         if isolation_range:
             self.isolation_ll = isolation_range[0]
@@ -131,6 +130,8 @@ class Spectrum():
         else:
             self.mzs = MS2_MZS
             self.ints = np.zeros(len(MS2_INTS))
+
+        self.indicies = []
         return
 
     def add_peaks(self, options, p, groupi, samplei):
@@ -186,6 +187,9 @@ class Spectrum():
             # remove low intensity points
             int_mask = np.where(peak_ints < min_peak_intensity)
             peak_ints[int_mask] = 0
+
+            # track peak intensities
+            peak.update_intensities_to_report(groupi, samplei, peak_ints)
 
             # add new data to full spectrum intensity
             self.ints[lower_limit:higher_limit] += peak_ints
