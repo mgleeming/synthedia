@@ -375,14 +375,26 @@ def write_peptide_target_table(options, peptides):
         'Synthetic RT End',
         'Synthetic m/z 0'
     ]
-    # precursor abundances in file
+    # precursor nominal abundances in file
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
-            to_write.append('Intensity group_%s_sample_%s' %(group, sample))
+            to_write.append('Nominal abundance group_%s_sample_%s' %(group, sample))
+
+     # precursor measured abundances in file
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Total abundance group_%s_sample_%s' %(group, sample))
+
+    # precursor measured height
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Peak height group_%s_sample_%s' %(group, sample))
+
     # precursor offsets
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
             to_write.append('Offset group_%s_sample_%s' %(group, sample))
+
     # precursor found in group
     for group in range(options.n_groups):
         to_write.append('Found in group_%s' %(group))
@@ -416,10 +428,20 @@ def write_peptide_target_table(options, peptides):
             p.ms1_isotopes[0].mz
         ]
 
-        # precursor abundances in file
+        # precursor nominal abundances in file
         for group in p.abundances:
             for sample in group:
                 to_write.append(sample)
+
+        # precursor measured abundances in file
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_total_precursor_intensity(group, sample))
+
+        # precursor measured height
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_max_precursor_intensity(group, sample))
 
         # precursor offsets
         for group in p.offsets:

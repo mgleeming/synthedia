@@ -7,10 +7,33 @@ PROTON = 1.007276
 IAA = 57.02092
 
 class Peak():
-    def __init__(self, mz, intensity):
+    def __init__(self, options, mz, intensity):
         self.mz = mz
         self.intensity = intensity
+        self.make_peak_intensity_lists(options)
         return
+
+    def make_peak_intensity_lists(self, options):
+        self.total_intensity = []
+        self.max_intensity = []
+        for groupi in range(options.n_groups):
+            self.total_intensity.append([])
+            self.max_intensity.append([])
+            for samplei in range(options.samples_per_group):
+                self.total_intensity[-1].append([])
+                self.max_intensity[-1].append([])
+        return
+
+    def update_intensities_to_report(self, groupi, samplei, peak_ints):
+        self.total_intensity[groupi][samplei].append(peak_ints.sum())
+        self.max_intensity[groupi][samplei].append(peak_ints.max())
+        return
+
+    def get_total_intensity_to_report(self, groupi, samplei):
+        return sum(self.total_intensity[groupi][samplei])
+
+    def get_max_intensity_to_report(self, groupi, samplei):
+        return max(self.max_intensity[groupi][samplei])
 
     def get_limits(self, options, mzs):
         try:
@@ -87,12 +110,25 @@ class SyntheticPeptide():
         return
 
     def get_points_per_peak(self, groupi, samplei, ms_level):
-        print(self.points_per_peak_dict)
         return self.points_per_peak_dict['%s_%s_%s'%(groupi, samplei, ms_level)]
+
+    def get_total_precursor_intensity(self, groupi, samplei):
+        return sum([
+            peak.get_total_intensity_to_report(
+                groupi, samplei
+            ) for peak in self.ms1_isotopes
+        ])
+
+    def get_max_precursor_intensity(self, groupi, samplei):
+        return max([
+            peak.get_total_intensity_to_report(
+                groupi, samplei
+            ) for peak in self.ms1_isotopes
+        ])
 
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
-            Peak(p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
+            Peak(options, p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
         ]
         return
 
@@ -149,14 +185,14 @@ class SyntheticPeptide():
         self.msms_entry = msms_entry
         return
 
-    def get_ms1_isotope_pattern(self):
+    def get_ms1_isotope_pattern(self, options):
         isotopes = []
         if self.decoy:
             for isotope in mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
-                        calc_mz, isotope[1] * self.intensity
+                        options, calc_mz, isotope[1] * self.intensity
                     )
                 )
         else:
@@ -164,7 +200,7 @@ class SyntheticPeptide():
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
-                        calc_mz, isotope[1] * self.intensity
+                        options, calc_mz, isotope[1] * self.intensity
                     )
                 )
         self.ms1_isotopes = isotopes
