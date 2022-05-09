@@ -8,6 +8,7 @@ class MZMLReader():
         self.od_exp.openFile(file)
         self.num_spectra = self.od_exp.getNrSpectra()
 
+
     def __iter__(self):
         self.current_spec = 0
         return self
@@ -15,6 +16,7 @@ class MZMLReader():
     def __next__(self):
         if self.current_spec < self.num_spectra:
             s = self.od_exp.getSpectrum(self.current_spec)
+            print(s.getMetaValue('preset scan configuration'))
             t = s.getRT() / 60
             lvl = s.getMSLevel()
             mzs, ints = s.get_peaks()
@@ -34,6 +36,36 @@ class MZMLWriter():
         self.n_spectra = n_spectra
         self.consumer = PlainMSDataWritingConsumer(out_file)
         self.consumer.setExpectedSize(n_spectra,0)
+
+        print('set instrument\n\n')
+        experiment = ExperimentalSettings()
+        instrument = Instrument()
+
+        # set ionisation source
+        source = IonSource()
+        source.setOrder(1)
+        source.setIonizationMethod(20)
+        instrument.setIonSources([source])
+
+        # set analyser
+        # see pyopenms.pyopenms_6.__AnalyzerType.__dict__
+        # for mapping of integers to analyser types
+        analysers = []
+        for analyser_id in [1,13]:
+            analyser = MassAnalyzer()
+            analyser.setType(analyser_id)
+            analyser.setOrder(2)
+            analysers.append(analyser)
+        instrument.setMassAnalyzers(analysers)
+
+        # set detector
+        detector = IonDetector()
+        detector.setOrder(3)
+        detector.setType(20)
+        instrument.setIonDetectors([detector])
+
+        experiment.setInstrument(instrument)
+        self.consumer.setExperimentalSettings(experiment)
 
         self.n_spec_written = 0
         return
@@ -91,8 +123,10 @@ class MZMLWriter():
             scan_window.end = options.ms2_max_mz
 
         instrument_settings.setScanWindows([scan_window])
-
         spec_to_write.setInstrumentSettings( instrument_settings)
+
+        spec_to_write.setMetaValue('preset scan configuration', 0)
+        spec_to_write.setMetaValue('filter string', 'FTMS')
 
         if spec.order == 2:
             if len(spec_to_write.get_peaks()[0]) == 0:

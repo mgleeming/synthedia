@@ -30,7 +30,6 @@ def plot_tic(options):
                     ms2_rts.append(rt)
                     ms2_ints.append(sum(ints))
 
-            print(groupi, samplei, sum(ms1_ints))
             ax[0].plot(ms1_rts, ms1_ints, label = 'g%s, s%s' %(groupi, samplei))
             ax[1].plot(ms2_rts, ms2_ints, label = 'g%s, s%s' %(groupi, samplei))
 
