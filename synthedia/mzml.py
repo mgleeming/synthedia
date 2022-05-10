@@ -16,7 +16,6 @@ class MZMLReader():
     def __next__(self):
         if self.current_spec < self.num_spectra:
             s = self.od_exp.getSpectrum(self.current_spec)
-            print(s.getMetaValue('preset scan configuration'))
             t = s.getRT() / 60
             lvl = s.getMSLevel()
             mzs, ints = s.get_peaks()
@@ -104,6 +103,9 @@ class MZMLWriter():
             p.setIsolationWindowLowerOffset(spec.lower_offset)
             p.setIsolationWindowUpperOffset(spec.upper_offset)
 
+            p.setActivationMethods(set([0]))
+            p.setActivationEnergy(30)
+
             spec_to_write.setPrecursors( [p] )
 
         spec_to_write.updateRanges()
@@ -125,8 +127,14 @@ class MZMLWriter():
         instrument_settings.setScanWindows([scan_window])
         spec_to_write.setInstrumentSettings( instrument_settings)
 
-        spec_to_write.setMetaValue('preset scan configuration', 0)
-        spec_to_write.setMetaValue('filter string', 'FTMS')
+        spec_to_write.setMetaValue('lowest observed m/z', mzs[0])
+        spec_to_write.setMetaValue('highest observed m/z', mzs[-1])
+        spec_to_write.setMetaValue('base peak intensity', max(ints))
+        spec_to_write.setMetaValue('base peak m/z', mzs[np.argmax(ints)])
+        spec_to_write.setMetaValue('total ion current', sum(ints))
+
+#        spec_to_write.setMetaValue('preset scan configuration', 0)
+#        spec_to_write.setMetaValue('filter string', 'FTMS')
 
         if spec.order == 2:
             if len(spec_to_write.get_peaks()[0]) == 0:
