@@ -2,6 +2,7 @@ import os, copy, random, math, sys
 from pyopenms import *
 from .peak_models import *
 
+import time
 class MZMLReader():
     def __init__(self, file):
         self.od_exp = OnDiscMSExperiment()
@@ -65,15 +66,65 @@ class MZMLWriter():
 
         experiment.setInstrument(instrument)
         self.consumer.setExperimentalSettings(experiment)
-
         self.n_spec_written = 0
+
+        self.ghost_ms1_data = {}
+        self.ghost_ms2_data = {}
+
+        self.get_template_spectra()
         return
 
-    def write_spec(self, options, spec):
-        spec_to_write = MSSpectrum()
+    def get_template_spectra(self):
+        od_exp = OnDiscMSExperiment()
+        od_exp.openFile( '/home/mleeming/Code/synthedia/data/220329_MB-4007_08.mzML' )
+        self.ms1_template = None
+        self.ms2_template = None
+        print('getting template spectra')
+        for k in range(od_exp.getNrSpectra()):
+            s = od_exp.getSpectrum(k)
+            lvl = s.getMSLevel()
+            if all([self.ms1_template, self.ms2_template]):
+                break
+            print(lvl, self.ms1_template, self.ms2_template)
+            if lvl == 1:
+                self.ms1_template = s
+            if lvl == 2:
+                self.ms2_template = s
+                print(s.getPrecursors())
+        del od_exp
+        return
 
+    def get_ghost_data(self, options, spec):
+
+        if spec.order == 1:
+            if len(self.ghost_ms1_data) > 0:
+                return self.ghost_ms1_data
+            else:
+                self.ghost_ms1_data = spec.prepare_ghosts(options)
+                return self.ghost_ms1_data
+        if spec.order == 2:
+            if len(self.ghost_ms2_data) > 0:
+                return self.ghost_ms2_data
+            else:
+                self.ghost_ms2_data = spec.prepare_ghosts(options)
+                return self.ghost_ms2_data
+
+    def write_spec(self, options, spec):
+
+        #spec_to_write = MSSpectrum()
+        if spec.order == 1:
+            spec_to_write = copy.deepcopy(self.ms1_template)
+        if spec.order == 2:
+            spec_to_write = copy.deepcopy(self.ms2_template)
+
+        if len(spec.indicies) == 0:
+            n_ghosts = 20
+            ghost_data = self.get_ghost_data(options, spec)
+            spec.make_ghost_peak(options, n_ghosts, ghost_data)
 
         indicies = sorted(list(set(spec.indicies)))
+
+#        print(len(indicies))
         ints = spec.ints[indicies]
         mzs = spec.mzs[indicies]
 
@@ -108,7 +159,6 @@ class MZMLWriter():
 
             spec_to_write.setPrecursors( [p] )
 
-        spec_to_write.updateRanges()
 
         # Add scan metadata
         # - some software will crash reading the file without this
@@ -134,12 +184,32 @@ class MZMLWriter():
         spec_to_write.setMetaValue('total ion current', sum(ints))
 
 #        spec_to_write.setMetaValue('preset scan configuration', 0)
-#        spec_to_write.setMetaValue('filter string', 'FTMS')
+
+        # MS1 filter string template
+        # "FTMS + p NSI Full ms [350.0000-1400.0000]"
+        # MS2 filter string template
+        # "FTMS + c NSI Full ms2 422.6500@hcd30.00 [200.0000-2000.0000]"
+        if spec.order == 1:
+            spec_to_write.setMetaValue('filter string',
+                "FTMS + p NSI Full ms [%s.0000-%s.0000]" %(int(options.ms1_min_mz), int(options.ms1_max_mz))
+            )
+        elif spec.order == 2:
+            spec_to_write.setMetaValue('filter string',
+                "FTMS + c NSI Full ms2 %.4f@cid30.00 [%s.0000-%s.0000]" %(
+                    (spec.isolation_hl + spec.isolation_ll) / 2, int(options.ms1_min_mz), int(options.ms1_max_mz)
+                )
+            )
 
         if spec.order == 2:
             if len(spec_to_write.get_peaks()[0]) == 0:
+                print('delete')
                 del spec_to_write
                 return
+
+        spec_to_write.setNativeID(
+            'controllerType=0 controllerNumber=1 scan=%s' % self.n_spec_written
+        )
+        spec_to_write.updateRanges()
 
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1
@@ -163,6 +233,7 @@ class Spectrum():
             self.upper_offset = (isolation_range[1] - isolation_range[0]) / 2
 
         return
+
 
     def make_spectrum(self, MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS):
         # much faster than creating a new array for every scan
@@ -244,6 +315,34 @@ class Spectrum():
             self.ints[lower_limit:higher_limit] += peak_ints
 
         return
+
+    def make_ghost_peak(self, options, n_ghosts, ghost_data):
+
+        ghost_intensities = ghost_data['ghost_intensities']
+        ghost_indicies = ghost_data['ghost_indicies']
+
+        ghost_max_int = 100
+        for i in range(n_ghosts):
+            index = random.randint(0,len(self.mzs) - len(ghost_indicies) - 2)
+            mask = ghost_indicies + index
+            self.ints[mask] = ghost_intensities * random.randint(10, 500000)
+            self.indicies.extend(mask)
+
+        return
+
+    def prepare_ghosts(self, options):
+        if self.order == 1:
+            stdev = options.ms1_stdev
+        else:
+            stdev = options.ms2_stdev
+        peak_ints = options.mz_peak_model(self.mzs, **{
+            'mu': 500, 'sig': stdev, 'emg_k': options.mz_emg_k
+        })
+        ghost_indicies = np.where( peak_ints > 0.001)
+        ghost_intensities = peak_ints[ghost_indicies]
+        ghost_intensities = ghost_intensities / max(ghost_intensities)
+        ghost_indicies = ghost_indicies[0] - min(ghost_indicies[0])
+        return {'ghost_intensities': ghost_intensities, 'ghost_indicies': ghost_indicies}
 
     def clear(self):
         # save memory
