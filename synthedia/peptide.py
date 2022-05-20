@@ -7,10 +7,11 @@ PROTON = 1.007276
 IAA = 57.02092
 
 class Peak():
-    def __init__(self, options, mz, intensity):
+    def __init__(self, options, mz, intensity, level = None):
         self.mz = mz
         self.intensity = intensity
         self.make_peak_intensity_lists(options)
+        self.level = level
         return
 
     def make_peak_intensity_lists(self, options):
@@ -39,11 +40,21 @@ class Peak():
         try:
             return self.lower_limit, self.higher_limit, self.indicies
         except AttributeError:
-            mz_mask = np.where(
-                (mzs > self.mz - options.ms_clip_window)
-                &
-                (mzs < self.mz + options.ms_clip_window)
-            )
+            if self.level == 1:
+                # isotopes handled separately in MS1
+                mz_mask = np.where(
+                    (mzs > self.mz - options.ms_clip_window)
+                    &
+                    (mzs < self.mz + options.ms_clip_window)
+                )
+            else:
+                # provide space to simulate isotopes
+                mz_mask = np.where(
+                    (mzs > self.mz - options.ms_clip_window)
+                    &
+                    (mzs < self.mz + options.ms_clip_window)
+                    #(mzs < self.mz + 5)
+                )
             try:
                 self.lower_limit = mz_mask[0].min()
                 self.higher_limit = mz_mask[0].max()
@@ -128,7 +139,7 @@ class SyntheticPeptide():
 
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
-            Peak(options, p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
+            Peak(options, p[0], p[1], level = 2) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
         ]
         return
 
@@ -192,7 +203,7 @@ class SyntheticPeptide():
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
-                        options, calc_mz, isotope[1] * self.intensity
+                        options, calc_mz, isotope[1] * self.intensity, level = 1
                     )
                 )
         else:
@@ -200,7 +211,7 @@ class SyntheticPeptide():
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
-                        options, calc_mz, isotope[1] * self.intensity
+                        options, calc_mz, isotope[1] * self.intensity, level = 1
                     )
                 )
         self.ms1_isotopes = isotopes

@@ -5,7 +5,7 @@ import numpy as np
 
 from . import plotting
 from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths
-from .mzml import Spectrum, MZMLWriter, MZMLReader
+from .mzml import Spectrum, MZMLWriter, MZMLReader, Server
 from .peak_models import PeakModels
 
 class NoPeptidesToSimulateError(Exception):
@@ -329,6 +329,10 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
         # make spec numpy arrays on the fly to save memory
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
+
+#        n_ghosts = 30
+#        ghost_data = run.get_ghost_data(options, spectrum)
+#        spectrum.make_ghost_peak(options, n_ghosts, ghost_data)
 
         peptide_subset = [
             p for p in peptides if all(

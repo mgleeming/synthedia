@@ -29,9 +29,9 @@ def main(args = None):
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
-    instrument_args.add_argument( '--ms1_min_mz', required = False, type = int, default = 350,
+    instrument_args.add_argument( '--ms1_min_mz', required = False, type = int, default = 400,
                         help = 'Minimum m/z at MS1 level.')
-    instrument_args.add_argument( '--ms1_max_mz', required = False, type = int, default = 1600,
+    instrument_args.add_argument( '--ms1_max_mz', required = False, type = int, default = 1000,
                         help = 'Maximum m/z at MS1 level.')
     instrument_args.add_argument( '--ms2_min_mz', required = False, type = int, default = 100,
                         help = 'Minimum m/z at MS2 level.')
