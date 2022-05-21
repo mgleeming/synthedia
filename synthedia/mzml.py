@@ -41,10 +41,20 @@ class MZMLWriter():
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
-
-        indicies = sorted(list(set(spec.indicies)))
-        ints = spec.ints[indicies]
-        mzs = spec.mzs[indicies]
+        if spec.centroid:
+            mzs = np.asarray(spec.mzs)
+#            if len(spec.mzs) > 0:
+#                print(spec.mzs)
+            ints = np.asarray(spec.ints)
+            mask = np.argsort(mzs)
+            mzs = mzs[mask]
+            ints = ints[mask]
+            spec_to_write.setType(1)
+        else:
+            indicies = sorted(list(set(spec.indicies)))
+            ints = spec.ints[indicies]
+            mzs = spec.mzs[indicies]
+            spec_to_write.setType(2)
 
         if options.write_empty_spectra == False:
             if len(ints) > 0:
@@ -55,14 +65,6 @@ class MZMLWriter():
         else:
             spec_to_write.set_peaks([mzs, ints])
 
-        if options.centroid:
-            centroided_spectrum = MSSpectrum()
-            PeakPickerHiRes().pick(spec_to_write, centroided_spectrum)
-            spec_to_write = centroided_spectrum
-            spec_to_write.setType(1)
-        else:
-            spec_to_write.setType(2)
-
         spec_to_write.setRT(spec.rt)
         spec_to_write.setMSLevel(spec.order)
 
@@ -71,7 +73,6 @@ class MZMLWriter():
             p.setMZ((spec.isolation_hl + spec.isolation_ll) / 2)
             p.setIsolationWindowLowerOffset(spec.lower_offset)
             p.setIsolationWindowUpperOffset(spec.upper_offset)
-
             spec_to_write.setPrecursors( [p] )
 
         spec_to_write.updateRanges()
@@ -94,11 +95,6 @@ class MZMLWriter():
 
         spec_to_write.setInstrumentSettings( instrument_settings)
 
-        if spec.order == 2:
-            if len(spec_to_write.get_peaks()[0]) == 0:
-                del spec_to_write
-                return
-
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1
         del spec_to_write
@@ -109,9 +105,15 @@ class MZMLWriter():
         return
 
 class Spectrum():
-    def __init__(self, rt, order, isolation_range):
+    def __init__(self, rt, order, isolation_range, options):
         self.rt = rt
         self.order = order
+        self.centroid = False
+
+        if options.centroid_ms1 and (self.order == 1):
+            self.centroid = True
+        if options.centroid_ms2 and (self.order == 2):
+            self.centroid = True
 
         if isolation_range:
             self.isolation_ll = isolation_range[0]
@@ -123,18 +125,62 @@ class Spectrum():
         return
 
     def make_spectrum(self, MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS):
-        # much faster than creating a new array for every scan
-        if self.order == 1:
-            self.mzs = MS1_MZS
-            self.ints = np.zeros(len(MS1_INTS))
+
+        if self.centroid:
+            self.mzs = []
+            self.ints = []
         else:
-            self.mzs = MS2_MZS
-            self.ints = np.zeros(len(MS2_INTS))
+            # much faster than creating a new array for every scan
+            if self.order == 1:
+                self.mzs = MS1_MZS
+                self.ints = np.zeros(len(MS1_INTS))
+            else:
+                self.mzs = MS2_MZS
+                self.ints = np.zeros(len(MS2_INTS))
 
         self.indicies = []
         return
 
+
     def add_peaks(self, options, p, groupi, samplei):
+        if self.centroid:
+            self.add_centroid_peaks(options, p, groupi, samplei)
+        else:
+            self.add_profile_peaks(options, p, groupi, samplei)
+        return
+
+    def add_centroid_peaks(self, options, p, groupi, samplei):
+        peptide_scaled_rt = p.scaled_rt
+        abundance_offset = p.offsets[groupi][samplei]
+
+        # scaling factor for point on chromatogram
+        intensity_scale_factor = options.rt_peak_model(self.rt, **{
+            'mu': peptide_scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+        })
+
+        # apply chromatographic instability if needed
+        if options.rt_instability > 0:
+            instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
+            intensity_scale_factor *= instability_factor
+
+        if self.order == 1:
+            peaks = p.ms1_isotopes
+            min_peak_intensity = options.ms1_min_peak_intensity
+        else:
+            peaks = p.ms2_peaks
+            min_peak_intensity = options.ms2_min_peak_intensity
+
+        for peaki, peak in enumerate(peaks):
+            log_int = math.log2(peak.intensity)
+            adjusted_log2_int = log_int + abundance_offset
+            adjusetd_raw_int = 2 ** adjusted_log2_int
+            peak_int = adjusetd_raw_int * intensity_scale_factor
+            if peak_int > min_peak_intensity:
+                self.mzs.append(peak.mz)
+                self.ints.append(peak_int)
+        return
+
+    def add_profile_peaks(self, options, p, groupi, samplei):
 
         peptide_scaled_rt = p.scaled_rt
         abundance_offset = p.offsets[groupi][samplei]

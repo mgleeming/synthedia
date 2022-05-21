@@ -59,7 +59,7 @@ def make_spectra(options):
     while total_run_time < options.new_run_length + 2 * options.rt_buffer * 60:
         for entry in run_template:
             spectra.append(
-                Spectrum( total_run_time, entry['order'], entry['isolation_range'])
+                Spectrum( total_run_time, entry['order'], entry['isolation_range'], options)
             )
             total_run_time += entry['length']
 

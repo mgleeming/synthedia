@@ -93,6 +93,33 @@ def test_prosit_defaults():
     assert n_ms1 > 0
     assert n_ms2 > 0
 
+def test_prosit_centroid_ms1():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
+    assembly.assemble(options)
+    check_files()
+    n_ms1, n_ms2 = read_mzml_file(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    assert n_ms1 > 0
+    assert n_ms2 > 0
+
+def test_prosit_centroid_ms2():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms2': True})
+    assembly.assemble(options)
+    check_files()
+    n_ms1, n_ms2 = read_mzml_file(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    assert n_ms1 > 0
+    assert n_ms2 > 0
+
+def test_prosit_centroid_both():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'centroid_ms2': True})
+    assembly.assemble(options)
+    check_files()
+    n_ms1, n_ms2 = read_mzml_file(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    assert n_ms1 > 0
+    assert n_ms2 > 0
+
 def test_acquisition_schema():
     create_test_dir()
     options = update_param({'mq_txt_dir': TEST_RESOURCES, 'acquisition_schema' : os.path.join(TEST_RESOURCES, 'acquisition_schema_example.csv')})
@@ -137,6 +164,6 @@ def test_invalid_mz_peak_model():
 
 def test_MS1_EICs():
     create_test_dir()
-    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid': True})
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
     assembly.assemble(options)
     plot_MS1_EICe(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))

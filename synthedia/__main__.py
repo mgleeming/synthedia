@@ -73,8 +73,10 @@ def main(args = None):
                         help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS1 spectra.')
     simulation_args.add_argument( '--ms2_min_peak_intensity', required = False, type = float, default = 10,
                         help = 'Peptide elution profiles are simulated as gaussian peaks. This value sets the minimum gaussian curve intensitiy for a peptide to be simulated in MS2 spectra.')
-    simulation_args.add_argument( '--centroid', action = 'store_true',
-                        help = 'If given, simulated mass spectra will be centroided. Otherwise, profile data will be written.')
+    simulation_args.add_argument( '--centroid_ms1', action = 'store_true',
+                        help = 'If given, simulated MS1 mass spectra will be centroided. Otherwise, profile data will be written.')
+    simulation_args.add_argument( '--centroid_ms2', action = 'store_true',
+                        help = 'If given, simulated MS2 mass spectra will be centroided. Otherwise, profile data will be written.')
     simulation_args.add_argument( '--write_empty_spectra', action = 'store_true',
                         help = 'Write empty mass sepctra to the output data file')
     simulation_args.add_argument( '--mz_peak_model', required = False, type = str, default = 'gaussian',

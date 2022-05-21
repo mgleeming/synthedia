@@ -1,7 +1,8 @@
 acquisition_schema: null
 all: false
 between_group_stdev: 1.0
-centroid: false
+centroid_ms1: false
+centroid_ms2: false
 config: null
 decoy_msp_file: null
 filterTerm:
