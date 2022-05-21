@@ -272,6 +272,6 @@ def calculate_scaled_retention_times(options, peptides):
 
     for p in peptides:
         p.scale_retention_times(options)
-
+        print(p.scaled_rt)
     return peptides
 

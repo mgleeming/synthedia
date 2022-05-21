@@ -5,7 +5,7 @@ import numpy as np
 
 from . import plotting
 from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths
-from .mzml import Spectrum, MZMLWriter, MZMLReader, Server
+from .mzml import Spectrum, MZMLWriter, MZMLReader, Server, TemplateReader
 from .peak_models import PeakModels
 
 class NoPeptidesToSimulateError(Exception):
@@ -297,6 +297,84 @@ def read_peptides_from_mq(options):
     return peptides
 
 def populate_spectra(options, peptides, spectra, groupi, samplei):
+    logger = logging.getLogger("assembly_logger")
+
+    MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
+    MS1_INTS = np.zeros(len(MS1_MZS), dtype = int)
+
+    MS2_MZS = np.arange(options.ms2_min_mz, options.ms2_max_mz, options.ms2_point_diff)
+    MS2_INTS = np.zeros(len(MS2_MZS), dtype = int)
+
+    min_rt = min([p.min_scaled_peak_rt for p in peptides])
+    max_rt = max([p.max_scaled_peak_rt for p in peptides])
+
+    print(min_rt, max_rt)
+
+    run = MZMLWriter(
+        os.path.join(
+            options.out_dir, '%s_group_%s_sample_%s.mzML' %(
+                options.output_label, groupi, samplei
+            )
+        ),
+        len(spectra)
+    )
+
+
+    spectra = TemplateReader()
+    for spectrumi, spectrum in enumerate(spectra):
+
+        if spectrumi % 1000 == 0:
+            print(spectrumi, spectrum.rt)
+        if spectrum.rt > 2500: break
+        if spectrum.rt < 2200: continue
+#        if (spectrum.rt < min_rt) or (spectrum.rt > max_rt):
+#            continue
+
+#        if spectrum.rt > max_rt:
+#            break
+
+        if spectrumi % 1000 == 0:
+            logger.info('\tGroup %s, Sample %s - Writing spectrum %s of %s' %(
+                groupi, samplei, spectrumi, 0)
+            )
+
+        # make spec numpy arrays on the fly to save memory
+        spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
+#
+##        n_ghosts = 30
+##        ghost_data = run.get_ghost_data(options, spectrum)
+##        spectrum.make_ghost_peak(options, n_ghosts, ghost_data)
+#
+        peptide_subset = [
+            p for p in peptides if all(
+                [p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt]
+            )
+        ]
+
+        for p in peptide_subset:
+
+            # skip missing peptides
+            if (p.found_in_sample[groupi][samplei] == 0):
+                continue
+
+            if spectrum.order == 1:
+                spectrum.add_peaks(options, p, groupi, samplei)
+            elif spectrum.order == 2:
+                if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
+                    spectrum.add_peaks(options, p, groupi, samplei)
+
+        # write final spec to file
+        run.write_spec(options, spectrum)
+
+        # this deletes m/z and intensity arrays that aren't needed anymore
+        spectrum.clear()
+
+    # close consumer
+    run.close()
+    return
+
+
+def populate_spectra_old(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
