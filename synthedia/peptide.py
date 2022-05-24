@@ -113,18 +113,28 @@ class SyntheticPeptide():
         return self.points_per_peak_dict['%s_%s_%s'%(groupi, samplei, ms_level)]
 
     def get_total_precursor_intensity(self, groupi, samplei):
-        return sum([
-            peak.get_total_intensity_to_report(
-                groupi, samplei
-            ) for peak in self.ms1_isotopes
-        ])
+        try:
+            return sum([
+                peak.get_total_intensity_to_report(
+                    groupi, samplei
+                ) for peak in self.ms1_isotopes
+            ])
+        except ValueError:
+            # occurs if no MS1 intensity
+            # i.e. no MS1 spectra
+            return 0
 
     def get_max_precursor_intensity(self, groupi, samplei):
-        return max([
-            peak.get_total_intensity_to_report(
-                groupi, samplei
-            ) for peak in self.ms1_isotopes
-        ])
+        try:
+            return max([
+                peak.get_max_intensity_to_report(
+                    groupi, samplei
+                ) for peak in self.ms1_isotopes
+            ])
+        except ValueError:
+            # occurs if no MS1 intensity
+            # i.e. no MS1 spectra
+            return 0
 
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [

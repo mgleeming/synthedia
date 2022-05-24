@@ -178,6 +178,16 @@ class Spectrum():
             if peak_int > min_peak_intensity:
                 self.mzs.append(peak.mz)
                 self.ints.append(peak_int)
+
+                # track peak intensities
+                if self.order == 1:
+                    peak.update_intensities_to_report(groupi, samplei, peak_int)
+
+                # in the case of MS1 spectra - increment only for one isotope
+                # in the case of MS2 spectra - increment only for one fragment
+                if peaki == 0:
+                    p.increment_points_per_peak_dict(groupi, samplei, self.order)
+
         return
 
     def add_profile_peaks(self, options, p, groupi, samplei):
@@ -242,7 +252,8 @@ class Spectrum():
             peak_ints[int_mask] = 0
 
             # track peak intensities
-            peak.update_intensities_to_report(groupi, samplei, peak_ints)
+            if self.order == 1:
+                peak.update_intensities_to_report(groupi, samplei, peak_ints)
 
             # add new data to full spectrum intensity
             self.ints[lower_limit:higher_limit] += peak_ints

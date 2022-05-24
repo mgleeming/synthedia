@@ -375,10 +375,10 @@ def write_peptide_target_table(options, peptides):
         'Synthetic RT End',
         'Synthetic m/z 0'
     ]
-    # precursor nominal abundances in file
-    for group in range(options.n_groups):
-        for sample in range(options.samples_per_group):
-            to_write.append('Nominal abundance group_%s_sample_%s' %(group, sample))
+#    # precursor nominal abundances in file
+#    for group in range(options.n_groups):
+#        for sample in range(options.samples_per_group):
+#            to_write.append('Nominal abundance group_%s_sample_%s' %(group, sample))
 
      # precursor measured abundances in file
     for group in range(options.n_groups):
@@ -428,10 +428,10 @@ def write_peptide_target_table(options, peptides):
             p.ms1_isotopes[0].mz
         ]
 
-        # precursor nominal abundances in file
-        for group in p.abundances:
-            for sample in group:
-                to_write.append(sample)
+#        # precursor nominal abundances in file
+#        for group in p.abundances:
+#            for sample in group:
+#                to_write.append(sample)
 
         # precursor measured abundances in file
         for group in range(options.n_groups):
