@@ -22,7 +22,7 @@ ms2_min_peak_intensity: 10
 ms2_resolution: 15000
 ms2_scan_duration: 0.037
 ms_clip_window: 0.15
-rt_clip_window: 2.5
+rt_clip_window: 60
 mz_emg_k: 2
 mz_peak_model: gaussian
 n_groups: 1

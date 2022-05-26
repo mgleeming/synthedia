@@ -54,12 +54,57 @@ def plot_MS1_EICe(mzml_file):
     assert sum(intensities) > 0
     assert sum(zero_intensities) == 0
 
+def get_TIC_for_ms_lvl(mzml_file, target_lvl = None):
+    rts, intensities, zero_intensities = [], [], []
+    for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
+        if lvl != target_lvl: continue
+        if ints.sum() > 0:
+            rts.append(rt)
+            intensities.append(ints.sum())
+    return rts, intensities
+
+def get_EIC_for_ms_lvl(mzml_file, target_lvl = None):
+    rts, intensity_sums, intensity_maxes= [],[],[]
+    ll, hl = get_precursor_10ppm()
+    for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
+        if lvl != target_lvl: continue
+
+        mask = np.where((mzs > ll) & (mzs < hl))
+        mzs = mzs[mask]
+        ints = ints[mask]
+
+        if ints.sum() > 0:
+            rts.append(rt)
+            intensity_maxes.append(ints.max())
+            intensity_sums.append(ints.sum())
+
+    return rts, intensity_sums, intensity_maxes
+
+def get_precursor_10ppm():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    mz = peptide_table['m/z'].iloc[0]
+    diff = mz / 1000000 * 10
+    ll = mz - diff
+    hl = mz + diff + 5
+    return ll, hl
+
 def get_precursor():
     peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
     mz = peptide_table['m/z'].iloc[0]
     ll = mz - 1
     hl = mz + 5
     return ll, hl
+
+def get_n_chromatographic_points_for_ms_level(lvl):
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    npoints = peptide_table['MS%s chromatographic points group_0_sample_0'% lvl].iloc[0]
+    return npoints
+
+def get_target_peak_area_and_height():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    area = peptide_table['Total abundance group_0_sample_0'].iloc[0]
+    height = peptide_table['Peak height group_0_sample_0'].iloc[0]
+    return area, height
 
 def update_param(new_params):
 
@@ -167,3 +212,48 @@ def test_MS1_EICs():
     options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
     assembly.assemble(options)
     plot_MS1_EICe(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+
+def test_n_MS_points():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 2)
+    n_pionts = get_n_chromatographic_points_for_ms_level(2)
+    assert n_pionts == len(rts)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 1)
+    n_pionts = get_n_chromatographic_points_for_ms_level(1)
+    assert n_pionts == len(rts)
+
+def test_n_MS_points_narrow():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 0.3})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 2)
+    n_pionts = get_n_chromatographic_points_for_ms_level(2)
+    assert n_pionts == len(rts)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 1)
+    n_pionts = get_n_chromatographic_points_for_ms_level(1)
+    assert n_pionts == len(rts)
+
+def test_n_MS_points_wide():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 10})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 2)
+    n_pionts = get_n_chromatographic_points_for_ms_level(2)
+    assert n_pionts == len(rts)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 1)
+    n_pionts = get_n_chromatographic_points_for_ms_level(1)
+    assert n_pionts == len(rts)
+
+
+def test_peptide_total_intensity():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 10})
+    assembly.assemble(options)
+    rts, intensity_sums, intensity_maxes = get_EIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 1)
+    area, height = get_target_peak_area_and_height()
+
+    assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
+    assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
+
