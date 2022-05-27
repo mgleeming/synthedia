@@ -185,7 +185,10 @@ class Spectrum():
 
                 # track peak intensities
                 if self.order == 1:
-                    peak.update_intensities_to_report(groupi, samplei, peak_int)
+                    peak.update_ms1_intensities_to_report(groupi, samplei, peak_int)
+                elif self.order == 2:
+                    if p.max_fragment_index == peaki:
+                        peak.update_fragment_intensities_to_report(groupi, samplei, peak_int)
 
                 # in the case of MS1 spectra - increment only for one isotope
                 # in the case of MS2 spectra - increment only for one fragment
@@ -262,7 +265,10 @@ class Spectrum():
 
             # track peak intensities
             if self.order == 1:
-                peak.update_intensities_to_report(groupi, samplei, peak_ints)
+                peak.update_ms1_intensities_to_report(groupi, samplei, peak_ints)
+            elif self.order == 2:
+                if p.max_fragment_index == peaki:
+                    peak.update_fragment_intensities_to_report(groupi, samplei, peak_ints)
 
             # add new data to full spectrum intensity
             self.ints[lower_limit:higher_limit] += peak_ints

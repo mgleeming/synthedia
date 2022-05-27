@@ -66,7 +66,11 @@ def get_TIC_for_ms_lvl(mzml_file, target_lvl = None):
 
 def get_EIC_for_ms_lvl(mzml_file, target_lvl = None):
     rts, intensity_sums, intensity_maxes= [],[],[]
-    ll, hl = get_precursor_10ppm()
+
+    if target_lvl == 1:
+        ll, hl = get_precursor_10ppm()
+    if target_lvl == 2:
+        ll, hl = get_most_abundant_fragment()
     for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
         if lvl != target_lvl: continue
 
@@ -89,6 +93,14 @@ def get_precursor_10ppm():
     hl = mz + diff + 5
     return ll, hl
 
+def get_most_abundant_fragment():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    mz = peptide_table['Synthetic max fragment m/z'].iloc[0]
+    diff = mz / 1000000 * 10
+    ll = mz - diff
+    hl = mz + diff
+    return ll, hl
+
 def get_precursor():
     peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
     mz = peptide_table['m/z'].iloc[0]
@@ -103,8 +115,14 @@ def get_n_chromatographic_points_for_ms_level(lvl):
 
 def get_target_peak_area_and_height():
     peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
-    area = peptide_table['Total abundance group_0_sample_0'].iloc[0]
-    height = peptide_table['Peak height group_0_sample_0'].iloc[0]
+    area = peptide_table['Total precursor abundance group_0_sample_0'].iloc[0]
+    height = peptide_table['Precursor max peak height group_0_sample_0'].iloc[0]
+    return area, height
+
+def get_fragment_peak_area_and_height():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    area = peptide_table['Most abundant fragment total intensity group_0_sample_0'].iloc[0]
+    height = peptide_table['Most abundant fragment max height group_0_sample_0'].iloc[0]
     return area, height
 
 def get_target_peak_retention_boundaries():
@@ -124,7 +142,7 @@ def check_files():
     assert os.path.getsize(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML')) > 0, 'mzML file has 0 size'
     assert os.path.isfile(os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv')), 'Peptide table not produced'
     assert os.path.getsize(os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv')) > 0, 'Peptide table has 0 size'
-
+#
 def test_maxquant_default():
     create_test_dir()
     options = update_param({'mq_txt_dir': TEST_RESOURCES})
@@ -304,4 +322,15 @@ def test_missing_in_sample():
     start, end = get_target_peak_retention_boundaries()
     assert np.isclose(start, 0)
     assert np.isclose(end, 0)
+
+
+def test_max_fragment_intensity():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
+    assembly.assemble(options)
+    rts, intensity_sums, intensity_maxes = get_EIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 2)
+    area, height = get_fragment_peak_area_and_height()
+
+    assert abs (100 - sum(intensity_sums) /  area * 100) < 5
+    assert abs (100 - max(intensity_maxes) / height * 100) < 5
 

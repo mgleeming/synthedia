@@ -362,6 +362,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 def write_peptide_target_table(options, peptides):
 
     of1 = open( os.path.join(options.out_dir, '%s_peptide_table.tsv' %options.output_label),'wt')
+
     to_write = [
         'Protein',
         'Sequence',
@@ -373,7 +374,8 @@ def write_peptide_target_table(options, peptides):
         'Synthetic RT',
         'Synthetic RT Start',
         'Synthetic RT End',
-        'Synthetic m/z 0'
+        'Synthetic m/z 0',
+        'Synthetic max fragment m/z'
     ]
 #    # precursor nominal abundances in file
 #    for group in range(options.n_groups):
@@ -383,12 +385,22 @@ def write_peptide_target_table(options, peptides):
      # precursor measured abundances in file
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
-            to_write.append('Total abundance group_%s_sample_%s' %(group, sample))
+            to_write.append('Total precursor abundance group_%s_sample_%s' %(group, sample))
 
     # precursor measured height
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
-            to_write.append('Peak height group_%s_sample_%s' %(group, sample))
+            to_write.append('Precursor max peak height group_%s_sample_%s' %(group, sample))
+
+    # total abundance of most abundant fragment ion
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Most abundant fragment total intensity group_%s_sample_%s' %(group, sample))
+
+    # max height of most abundant fragment ion
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Most abundant fragment max height group_%s_sample_%s' %(group, sample))
 
     # precursor offsets
     for group in range(options.n_groups):
@@ -425,7 +437,8 @@ def write_peptide_target_table(options, peptides):
             p.scaled_rt,
             '%.3f' %p.get_min_peak_rt(),
             '%.3f' %p.get_max_peak_rt(),
-            p.ms1_isotopes[0].mz
+            p.ms1_isotopes[0].mz,
+            p.max_fragment_mz
         ]
 
 #        # precursor nominal abundances in file
@@ -442,6 +455,16 @@ def write_peptide_target_table(options, peptides):
         for group in range(options.n_groups):
             for sample in range(options.samples_per_group):
                 to_write.append(p.get_max_precursor_intensity(group, sample))
+
+        # max intensity fragment total abundance
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_total_fragment_intensity(group, sample))
+
+        # max intensity fragment max height
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.get_max_fragment_intensity(group, sample))
 
         # precursor offsets
         for group in p.offsets:

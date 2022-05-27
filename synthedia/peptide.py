@@ -15,26 +15,47 @@ class Peak():
         return
 
     def make_peak_intensity_lists(self, options):
-        self.total_intensity = []
-        self.max_intensity = []
+        self.total_ms1_intensity = []
+        self.max_ms1_intensity = []
+
+        self.total_fragment_intensity = []
+        self.max_fragment_intensity = []
+
         for groupi in range(options.n_groups):
-            self.total_intensity.append([])
-            self.max_intensity.append([])
+            self.total_ms1_intensity.append([])
+            self.max_ms1_intensity.append([])
+
+            self.total_fragment_intensity.append([])
+            self.max_fragment_intensity.append([])
             for samplei in range(options.samples_per_group):
-                self.total_intensity[-1].append([])
-                self.max_intensity[-1].append([])
+                self.total_ms1_intensity[-1].append([])
+                self.max_ms1_intensity[-1].append([])
+
+                self.total_fragment_intensity[-1].append([])
+                self.max_fragment_intensity[-1].append([])
         return
 
-    def update_intensities_to_report(self, groupi, samplei, peak_ints):
-        self.total_intensity[groupi][samplei].append(peak_ints.sum())
-        self.max_intensity[groupi][samplei].append(peak_ints.max())
+    def update_ms1_intensities_to_report(self, groupi, samplei, peak_ints):
+        self.total_ms1_intensity[groupi][samplei].append(peak_ints.sum())
+        self.max_ms1_intensity[groupi][samplei].append(peak_ints.max())
         return
 
-    def get_total_intensity_to_report(self, groupi, samplei):
-        return sum(self.total_intensity[groupi][samplei])
+    def update_fragment_intensities_to_report(self, groupi, samplei, peak_ints):
+        self.total_fragment_intensity[groupi][samplei].append(peak_ints.sum())
+        self.max_fragment_intensity[groupi][samplei].append(peak_ints.max())
+        return
 
-    def get_max_intensity_to_report(self, groupi, samplei):
-        return max(self.max_intensity[groupi][samplei])
+    def get_total_ms1_intensity_to_report(self, groupi, samplei):
+        return sum(self.total_ms1_intensity[groupi][samplei])
+
+    def get_max_ms1_intensity_to_report(self, groupi, samplei):
+        return max(self.max_ms1_intensity[groupi][samplei])
+
+    def get_total_fragment_intensity_to_report(self, groupi, samplei):
+        return sum(self.total_fragment_intensity[groupi][samplei])
+
+    def get_max_fragment_intensity_to_report(self, groupi, samplei):
+        return max(self.max_fragment_intensity[groupi][samplei])
 
     def get_limits(self, options, mzs):
         try:
@@ -136,7 +157,7 @@ class SyntheticPeptide():
     def get_total_precursor_intensity(self, groupi, samplei):
         try:
             return sum([
-                peak.get_total_intensity_to_report(
+                peak.get_total_ms1_intensity_to_report(
                     groupi, samplei
                 ) for peak in self.ms1_isotopes
             ])
@@ -148,7 +169,7 @@ class SyntheticPeptide():
     def get_max_precursor_intensity(self, groupi, samplei):
         try:
             return max([
-                peak.get_max_intensity_to_report(
+                peak.get_max_ms1_intensity_to_report(
                     groupi, samplei
                 ) for peak in self.ms1_isotopes
             ])
@@ -157,10 +178,29 @@ class SyntheticPeptide():
             # i.e. no MS1 spectra
             return 0
 
+    def get_total_fragment_intensity(self, groupi, samplei):
+        try:
+            return self.ms2_peaks[self.max_fragment_index].get_total_fragment_intensity_to_report(
+                groupi, samplei
+            )
+        except:
+            return 0
+
+    def get_max_fragment_intensity(self, groupi, samplei):
+        try:
+            return self.ms2_peaks[self.max_fragment_index].get_max_fragment_intensity_to_report(
+                groupi, samplei
+            )
+        except:
+            return 0
+
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
             Peak(options, p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
         ]
+
+        self.max_fragment_index = np.argmax([_.intensity for _ in self.ms2_peaks])
+        self.max_fragment_mz = self.ms2_peaks[self.max_fragment_index].mz
         return
 
     def populate_from_msp(self, options, msp_entry, peptide_min, peptide_max):
