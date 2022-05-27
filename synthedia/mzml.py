@@ -179,6 +179,10 @@ class Spectrum():
                 self.mzs.append(peak.mz)
                 self.ints.append(peak_int)
 
+                # update peptide retention boundaries
+                if peaki == 0:
+                    p.update_peptide_retention_times(self.rt)
+
                 # track peak intensities
                 if self.order == 1:
                     peak.update_intensities_to_report(groupi, samplei, peak_int)
@@ -246,6 +250,11 @@ class Spectrum():
                 # track the number of data points per peak
                 if max(peak_ints) > 0:
                     p.increment_points_per_peak_dict(groupi, samplei, self.order)
+
+            # update peptide retention boundaries
+            if peaki == 0:
+                if max(peak_ints) > min_peak_intensity:
+                    p.update_peptide_retention_times(self.rt)
 
             # remove low intensity points
             int_mask = np.where(peak_ints < min_peak_intensity)

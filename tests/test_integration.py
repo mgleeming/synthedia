@@ -57,7 +57,8 @@ def plot_MS1_EICe(mzml_file):
 def get_TIC_for_ms_lvl(mzml_file, target_lvl = None):
     rts, intensities, zero_intensities = [], [], []
     for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
-        if lvl != target_lvl: continue
+        if target_lvl:
+            if lvl != target_lvl: continue
         if ints.sum() > 0:
             rts.append(rt)
             intensities.append(ints.sum())
@@ -106,12 +107,16 @@ def get_target_peak_area_and_height():
     height = peptide_table['Peak height group_0_sample_0'].iloc[0]
     return area, height
 
-def update_param(new_params):
+def get_target_peak_retention_boundaries():
+    peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
+    start = peptide_table['Synthetic RT Start'].iloc[0]
+    end = peptide_table['Synthetic RT End'].iloc[0]
+    return start/60, end/ 60
 
+def update_param(new_params):
     params = copy.deepcopy(PARAM_TEMPLATE)
     for param, value in new_params.items():
         params[param] = value
-
     return Options(params)
 
 def check_files():
@@ -246,7 +251,6 @@ def test_n_MS_points_wide():
     n_pionts = get_n_chromatographic_points_for_ms_level(1)
     assert n_pionts == len(rts)
 
-
 def test_peptide_total_intensity():
     create_test_dir()
     options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 10})
@@ -256,4 +260,48 @@ def test_peptide_total_intensity():
 
     assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
     assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
+
+
+def test_retention_lengths():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    start, end = get_target_peak_retention_boundaries()
+    assert np.isclose(rts[0], start)
+    assert np.isclose(rts[-1], end)
+
+def test_retention_lengths_narrow():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 1})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    start, end = get_target_peak_retention_boundaries()
+    assert np.isclose(rts[0], start)
+    assert np.isclose(rts[-1], end)
+
+def test_retention_lengths_wide():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'rt_peak_fwhm': 10})
+    assembly.assemble(options)
+    rts, intensities = get_TIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
+    start, end = get_target_peak_retention_boundaries()
+    assert np.isclose(rts[0], start)
+    assert np.isclose(rts[-1], end)
+
+def test_missing_in_group():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 100})
+    assembly.assemble(options)
+    start, end = get_target_peak_retention_boundaries()
+    assert np.isclose(start, 0)
+    assert np.isclose(end, 0)
+
+def test_missing_in_sample():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 100, 'prob_missing_in_sample': 0})
+    assembly.assemble(options)
+    start, end = get_target_peak_retention_boundaries()
+    assert np.isclose(start, 0)
+    assert np.isclose(end, 0)
 

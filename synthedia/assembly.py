@@ -423,8 +423,8 @@ def write_peptide_target_table(options, peptides):
             p.mass,
             p.rt,
             p.scaled_rt,
-            '%.3f' %p.min_scaled_peak_rt,
-            '%.3f' %p.max_scaled_peak_rt,
+            '%.3f' %p.get_min_peak_rt(),
+            '%.3f' %p.get_max_peak_rt(),
             p.ms1_isotopes[0].mz
         ]
 

@@ -11,6 +11,7 @@ class Peak():
         self.mz = mz
         self.intensity = intensity
         self.make_peak_intensity_lists(options)
+
         return
 
     def make_peak_intensity_lists(self, options):
@@ -95,6 +96,26 @@ class SyntheticPeptide():
         self.set_abundances()
         self.configure_ms2_peaks(options)
         self.make_points_per_peak_dict(options)
+
+        self.min_peak_rt = None
+        self.max_peak_rt = None
+        return
+
+    def get_min_peak_rt(self):
+        if self.min_peak_rt:
+            return self.min_peak_rt
+        else:
+            return 0
+    def get_max_peak_rt(self):
+        if self.max_peak_rt:
+            return self.max_peak_rt
+        else:
+            return 0
+
+    def update_peptide_retention_times(self, rt):
+        if self.min_peak_rt == None:
+            self.min_peak_rt = rt
+        self.max_peak_rt = rt
         return
 
     def make_points_per_peak_dict(self, options):
@@ -246,16 +267,20 @@ class SyntheticPeptide():
             &
             (ms_rts < self.scaled_rt + options.rt_clip_window)
         )
+
         ms_rts = ms_rts[rt_mask]
 
         ints = options.rt_peak_model(ms_rts, **{
             'mu': self.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
         })
+
         ints *= self.intensity
         mask = np.where(ints > options.ms2_min_peak_intensity)
         peak_rts = ms_rts[mask]
+
         self.min_scaled_peak_rt = min(peak_rts)
         self.max_scaled_peak_rt = max(peak_rts)
+
         return min(peak_rts), max(peak_rts)
 
 def calculate_retention_lengths(options, peptides, spectra):
