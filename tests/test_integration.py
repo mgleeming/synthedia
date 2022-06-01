@@ -96,7 +96,7 @@ def get_precursor_10ppm():
 def get_most_abundant_fragment():
     peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
     mz = peptide_table['Synthetic max fragment m/z'].iloc[0]
-    diff = mz / 1000000 * 10
+    diff = mz / 1000000 * 50
     ll = mz - diff
     hl = mz + diff
     return ll, hl
@@ -323,14 +323,12 @@ def test_missing_in_sample():
     assert np.isclose(start, 0)
     assert np.isclose(end, 0)
 
-
 def test_max_fragment_intensity():
     create_test_dir()
-    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'centroid_ms2': True})
     assembly.assemble(options)
     rts, intensity_sums, intensity_maxes = get_EIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 2)
     area, height = get_fragment_peak_area_and_height()
-
-    assert abs (100 - sum(intensity_sums) /  area * 100) < 5
-    assert abs (100 - max(intensity_maxes) / height * 100) < 5
+    assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
+    assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
 
