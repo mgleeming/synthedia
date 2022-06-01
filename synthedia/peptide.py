@@ -339,3 +339,61 @@ def calculate_scaled_retention_times(options, peptides):
 
     return peptides
 
+def calculate_feature_windows(options, peptides, spectra):
+
+    # min intensity of any peak
+    min_intensity = min([
+        options.ms1_min_peak_intensity, options.ms2_min_peak_intensity
+    ])
+    intensity_scale_factor = 1
+
+    # need to find most abundant peak of any peptide and any ms level
+
+    # get peptide with most abundant base intensity
+    max_int_peptide_index = np.argmax([p.intensity for p in peptides])
+    max_int_peptide = peptides[max_int_peptide_index]
+
+    # find sample with most positive abundance offset between groups/replicates
+    max_abundance_offset = max([max(_) for _ in max_int_peptide.offsets])
+
+    # create list of all ms1 and ms2 peaks for this peptide
+    all_peaks = max_int_peptide.ms1_isotopes + max_int_peptide.ms2_peaks
+
+    # get most abundant peak
+    max_int_peak_index = np.argmax([peak.intensity for peak in all_peaks])
+    max_int_peak = all_peaks[max_int_peak_index]
+
+    # calculate most abundant final intensity
+    log_int = math.log2(max_int_peak.intensity)
+    adjusted_log2_int = log_int + max_abundance_offset
+    adjusetd_raw_int = 2 ** adjusted_log2_int
+    peak_int = adjusetd_raw_int * intensity_scale_factor
+
+    # calculate rt clip window
+    ms_rts = np.asarray([s.rt for s in spectra])
+
+    ints = options.rt_peak_model(ms_rts, **{
+        'mu': max_int_peptide.scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+    })
+
+    ints *= peak_int
+    mask = np.where(ints > min_intensity)
+    peak_rts = ms_rts[mask]
+
+    options.rt_clip_window = max(peak_rts) - min(peak_rts)
+
+    point_diff = min([options.ms1_point_diff, options.ms2_point_diff])
+    min_mz = min([options.ms1_min_mz, options.ms2_min_mz])
+    max_mz = max([options.ms1_max_mz, options.ms2_max_mz])
+    mzs = np.arange(min_mz, max_mz, point_diff)
+    max_stdev = max([options.ms1_stdev, options.ms2_stdev])
+
+    peak_ints = options.mz_peak_model(mzs, **{
+        'mu': max_int_peak.mz, 'sig': max_stdev, 'emg_k': options.mz_emg_k
+    })
+
+    mask = np.where(peak_ints > min_intensity)
+    peak_mzs = mzs[mask]
+
+    options.ms_clip_window = max(peak_mzs) - min(peak_mzs)
+    return

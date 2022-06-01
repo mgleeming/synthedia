@@ -4,7 +4,7 @@ from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle, Patch
 
 from .mzml import MZMLReader
-
+import numpy as np
 def plot_tic(options):
 
     fig = Figure()
@@ -23,6 +23,7 @@ def plot_tic(options):
             ms2_rts, ms2_ints = [],[]
 
             for (rt, lvl, mzs, ints) in MZMLReader(mzml_file):
+
                 if lvl == 1:
                     ms1_rts.append(rt)
                     ms1_ints.append(sum(ints))
@@ -30,7 +31,7 @@ def plot_tic(options):
                     ms2_rts.append(rt)
                     ms2_ints.append(sum(ints))
 
-            print(groupi, samplei, sum(ms1_ints))
+            all_rts = ms1_rts + ms2_rts
             ax[0].plot(ms1_rts, ms1_ints, label = 'g%s, s%s' %(groupi, samplei))
             ax[1].plot(ms2_rts, ms2_ints, label = 'g%s, s%s' %(groupi, samplei))
 

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from . import plotting
-from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths
+from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths, calculate_feature_windows
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 
@@ -377,10 +377,6 @@ def write_peptide_target_table(options, peptides):
         'Synthetic m/z 0',
         'Synthetic max fragment m/z'
     ]
-#    # precursor nominal abundances in file
-#    for group in range(options.n_groups):
-#        for sample in range(options.samples_per_group):
-#            to_write.append('Nominal abundance group_%s_sample_%s' %(group, sample))
 
      # precursor measured abundances in file
     for group in range(options.n_groups):
@@ -440,11 +436,6 @@ def write_peptide_target_table(options, peptides):
             p.ms1_isotopes[0].mz,
             p.max_fragment_mz
         ]
-
-#        # precursor nominal abundances in file
-#        for group in p.abundances:
-#            for sample in group:
-#                to_write.append(sample)
 
         # precursor measured abundances in file
         for group in range(options.n_groups):
@@ -636,6 +627,9 @@ def assemble(options):
     if options.rescale_rt:
         logger.info('Scaling retention times')
         peptides = calculate_scaled_retention_times(options, peptides)
+
+    logger.info('Calculating feature windows')
+    calculate_feature_windows(options, peptides, spectra)
 
     logger.info('Calculating retention lengths')
     peptides = calculate_retention_lengths(options, peptides, spectra)
