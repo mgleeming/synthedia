@@ -27,7 +27,6 @@ n_groups: 1
 n_points_gt_fwhm: 3
 new_run_length: 0
 num_decoys: 500
-num_processors: 8
 original_run_length: 0
 out_dir: null
 output_label: output

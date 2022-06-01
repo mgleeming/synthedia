@@ -142,7 +142,7 @@ def check_files():
     assert os.path.getsize(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML')) > 0, 'mzML file has 0 size'
     assert os.path.isfile(os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv')), 'Peptide table not produced'
     assert os.path.getsize(os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv')) > 0, 'Peptide table has 0 size'
-#
+
 def test_maxquant_default():
     create_test_dir()
     options = update_param({'mq_txt_dir': TEST_RESOURCES})
@@ -160,6 +160,12 @@ def test_prosit_defaults():
     n_ms1, n_ms2 = read_mzml_file(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
     assert n_ms1 > 0
     assert n_ms2 > 0
+
+def test_no_peptides():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'ms1_max_mz': 500})
+        assembly.assemble(options)
 
 def test_prosit_centroid_ms1():
     create_test_dir()
@@ -205,6 +211,30 @@ def test_acquisition_schema_no_MS1():
     n_ms1, n_ms2 = read_mzml_file(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'))
     assert n_ms1 == 0
     assert n_ms2 > 0
+
+def test_acquisition_schema_ms_error():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'acquisition_schema' : os.path.join(TEST_RESOURCES, 'acquisition_schema_example_error.csv')})
+        assembly.assemble(options)
+
+def test_acquisition_schema_low_isolation_range_error():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'acquisition_schema' : os.path.join(TEST_RESOURCES, 'acquisition_schema_example_error_2.csv')})
+        assembly.assemble(options)
+
+def test_acquisition_schema_high_isolation_range_error():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'acquisition_schema' : os.path.join(TEST_RESOURCES, 'acquisition_schema_example_error_3.csv')})
+        assembly.assemble(options)
+
+def test_acquisition_schema_missing_col():
+    with pytest.raises(Exception):
+        create_test_dir()
+        options = update_param({'mq_txt_dir': TEST_RESOURCES, 'acquisition_schema' : os.path.join(TEST_RESOURCES, 'acquisition_schema_example_error_4.csv')})
+        assembly.assemble(options)
 
 def test_no_peptides_in_MS_range():
     with pytest.raises(Exception):
@@ -279,7 +309,6 @@ def test_peptide_total_intensity():
     assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
     assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
 
-
 def test_retention_lengths():
     create_test_dir()
     options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
@@ -331,4 +360,3 @@ def test_max_fragment_intensity():
     area, height = get_fragment_peak_area_and_height()
     assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
     assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
-

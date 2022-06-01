@@ -1,4 +1,4 @@
-import os, sys, time, copy, pickle, multiprocessing
+import os, sys, time, copy
 import random, math, datetime, logging
 import pandas as pd
 import numpy as np
@@ -7,294 +7,13 @@ from . import plotting
 from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths, calculate_feature_windows
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
+from .io import InputReader, AcquisitionSchema
 
 class NoPeptidesToSimulateError(Exception):
     pass
 
-class IncorrectInputError(Exception):
-    pass
-
 class AcquisitionSchemaError(Exception):
     pass
-
-def make_spectra(options):
-    '''
-    Constructs a list of dicts that define the parameters of mass spectra to be simulated
-    '''
-    logger = logging.getLogger("assembly_logger")
-    run_template = []
-    if options.acquisition_schema is not None:
-        try:
-            df = pd.read_csv(options.acquisition_schema)
-            for index, row in df.iterrows():
-                run_template.append({
-                    'order': int(row['ms_level']), 'length': float(row['scan_duration_in_seconds']),
-                    'isolation_range': [float(row['isolation_window_lower_mz']), float(row['isolation_window_upper_mz'])]
-                })
-        except:
-            msg = 'Error parsing acquisition schema file'
-            logger.error(msg)
-            logger.error('Exiting')
-            raise IncorrectInputError(msg)
-    else:
-        run_template.append({
-            'order': 1, 'length': options.ms1_scan_duration, 'isolation_range': None
-        })
-        for i in range(options.ms1_min_mz, options.ms1_max_mz, options.isolation_window):
-            run_template.append({
-                'order': 2, 'length': options.ms2_scan_duration, 'isolation_range': [i, i + options.isolation_window]
-            })
-
-    if (options.all == True) or (options.schema == True):
-        plotting.plot_acquisition_schema(options, run_template)
-
-    if options.new_run_length < 0:
-        msg = 'Run length must be greater than 0 min'
-        logger.error(msg)
-        logger.error('Exiting')
-        raise AcquisitionSchemaError(msg)
-
-    spectra = []
-    total_run_time = 0
-    while total_run_time < options.new_run_length + 2 * options.rt_buffer * 60:
-        for entry in run_template:
-            spectra.append(
-                Spectrum( total_run_time, entry['order'], entry['isolation_range'], options)
-            )
-            total_run_time += entry['length']
-
-    return spectra
-
-def generate_group_and_sample_abundances(options):
-
-    peptide_abundance_offsets_between_groups = [0] + [
-        np.random.normal(
-            loc = 0, scale = options.between_group_stdev
-        ) for _ in range(options.n_groups - 1)
-    ]
-
-    sample_abundance_offsets = [
-        [
-            np.random.normal(
-                loc = group_abundance_offset, scale = options.within_group_stdev
-            ) for _ in range(options.samples_per_group)
-        ] for group_abundance_offset in peptide_abundance_offsets_between_groups
-    ]
-
-    return peptide_abundance_offsets_between_groups, sample_abundance_offsets
-
-def generate_group_and_sample_probabilities(options):
-
-    found_in_group = [1 if random.randint(0,100) >= options.prob_missing_in_group else 0 for _ in range(options.n_groups)]
-    found_in_sample = []
-
-    for group in found_in_group:
-
-        if group == 1:
-            found_in_sample.append([
-                1 if random.randint(0,100) >= options.prob_missing_in_sample else 0 for _ in range(options.samples_per_group)
-            ])
-
-        else:
-            found_in_sample.append([
-                0 for _ in range(options.samples_per_group)
-            ])
-
-    return found_in_group, found_in_sample
-
-def read_peptides_from_prosit(options):
-
-    logger = logging.getLogger("assembly_logger")
-
-    # read inputs
-    prosit = pd.read_csv(options.prosit, sep = ',')
-
-    # iRT values can be negative
-    prosit['Retention time'] = prosit['iRT']
-    min_rt = min(prosit['iRT'].tolist())
-    if min_rt < 0:
-        prosit['Retention time'] = prosit['Retention time'] + abs(min_rt)
-
-    # add rt_buffer to start of run
-    prosit['Retention time'] = prosit['Retention time'] + options.rt_buffer
-
-    counter = 0
-    peptides = []
-
-    n_groups = len(list(prosit.groupby(['ModifiedPeptide', 'PrecursorCharge'])))
-
-    for _, peptide in prosit.groupby(['ModifiedPeptide']):
-
-        # simulate abundances
-        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
-        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
-
-        for __, precursor in peptide.groupby(['PrecursorCharge']):
-
-            counter += 1
-            if counter % 100 == 0:
-                logger.info('Constructing peptide %s of %s' %(counter, n_groups))
-
-            # check if precursor out of bounds
-            if (float(precursor['PrecursorMz'].iloc[0]) < options.ms1_min_mz) or (float(precursor['PrecursorMz'].iloc[0]) > options.ms1_max_mz):
-                continue
-
-            peptides.append(
-                SyntheticPeptide(
-                    options,
-                    prosit_entry = precursor,
-                    peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
-                    sample_abundance_offsets = sample_abundance_offsets,
-                    found_in_group = found_in_group,
-                    found_in_sample = found_in_sample,
-                )
-            )
-
-    logger.info('Finished constructing %s peptides' %(len(peptides)))
-    return peptides
-
-def read_decoys_from_msp(options, peptides):
-
-    logger = logging.getLogger("assembly_logger")
-
-    peptide_intensities = [p.intensity for p in peptides]
-
-    # read inputs
-    lipids = []
-    new_lipid = []
-    with open(options.decoy_msp_file,'r') as if1:
-        for l in if1:
-            if l.strip() == '':
-                lipids.append(new_lipid)
-                new_lipid = []
-            else:
-                new_lipid.append(l.strip())
-
-    lipids = [_ for _ in lipids if 'PRECURSORTYPE: [M+H]+' in _]
-
-    counter = 0
-    peptides = []
-
-    rt_steps = np.arange(options.rt_buffer,options.new_run_length,0.001)
-
-    for l in lipids:
-
-        # simulate abundances
-        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
-        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
-
-        fragments = False
-        lipid_dict = {'fragments': []}
-        for item in l:
-            if 'Num Peaks:' in item:
-                fragments = True
-                continue
-            if not fragments:
-                try:
-                    k,v = item.split(': ')
-
-                    if k == 'RETENTIONTIME':
-                        v = rt_steps[random.randint(0,len(rt_steps))]
-                    lipid_dict[k] = v
-                except:
-                    continue
-
-            if fragments:
-                mz, intensity = item.split('\t')
-                lipid_dict['fragments'].append([float(mz), float(intensity)])
-
-        # check if precursor out of bounds
-        if (float(lipid_dict['PRECURSORMZ']) < options.ms1_min_mz) or (float(lipid_dict['PRECURSORMZ']) > options.ms1_max_mz):
-            continue
-
-        peptides.append(
-            SyntheticPeptide(
-                options,
-                msp_entry = [lipid_dict, min(peptide_intensities), max(peptide_intensities)],
-                peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
-                sample_abundance_offsets = sample_abundance_offsets,
-                found_in_group = found_in_group,
-                found_in_sample = found_in_sample,
-            )
-        )
-
-        if len(peptides) == options.num_decoys:
-            break
-
-    logger.info('\tFinished constructing %s decoys' %(len(peptides)))
-    return peptides
-
-def read_peptides_from_mq(options):
-
-    logger = logging.getLogger("assembly_logger")
-
-    # read inputs
-    msms = pd.read_csv(os.path.join(options.mq_txt_dir, 'msms.txt'), sep = '\t')
-    evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
-
-    raw_files = list(set(evidence['Raw file'].tolist()))
-
-    if len(raw_files) > 1:
-        evidence = evidence[evidence['Raw file'] == raw_files[0]]
-
-    # add rt_buffer to start of run
-    evidence['Retention time'] = evidence['Retention time'] + options.rt_buffer
-
-    evidence = evidence.sort_values(by = ['PEP'])
-
-    # filter unwanted proteins
-    for filterTerm in options.filterTerm:
-        evidence = evidence.loc[-evidence['Proteins'].str.contains(filterTerm, na=False)]
-
-    evidence = evidence[evidence['PEP'] < options.mq_pep_threshold]
-
-    # restrict to unmodified peptides for the moment
-    # NB - carbamidomethyl cys is retained
-    evidence = evidence[evidence['Modifications'] == 'Unmodified']
-
-    counter = 0
-    peptides = []
-
-    # group peptides from sample so all charge states of the same peptide can be given the same abundances
-    for __, peptide in evidence.groupby(['Modified sequence']):
-
-        # simulate abundances
-        peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
-        found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
-
-        for ___, evidence_row in peptide.iterrows():
-
-            counter += 1
-            if counter % 100 == 0:
-                logger.info('Constructing peptide %s of %s' %(counter, len(evidence)))
-
-            # check if precursor out of bounds
-            if (float(evidence_row['m/z']) < options.ms1_min_mz) or (float(evidence_row['m/z']) > options.ms1_max_mz):
-                continue
-
-            # filter non quantified peptides
-            if np.isnan(evidence_row['Intensity']): continue
-
-            # find matching msms entry - this cintains mz2 fragments
-            msms_entry = msms[msms['id'] == evidence_row['Best MS/MS']]
-
-            # safety
-            assert evidence_row['Sequence'] == msms_entry['Sequence'].iloc[0]
-
-            peptides.append(
-                SyntheticPeptide(
-                    options,
-                    evidence_entry = evidence_row,
-                    msms_entry = msms_entry,
-                    peptide_abundance_offsets_between_groups = peptide_abundance_offsets_between_groups,
-                    sample_abundance_offsets = sample_abundance_offsets,
-                    found_in_group = found_in_group,
-                    found_in_sample = found_in_sample,
-                )
-            )
-
-    logger.info('Finished constructing %s peptides' %(len(peptides)))
-    return peptides
 
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
@@ -570,17 +289,10 @@ def assemble(options):
 
     start = datetime.datetime.now()
     logger.info('Started Synthedia %s' % start)
-    logger.info('Executing with %s processors' %options.num_processors)
 
     logger.info('Config args:')
     for k,v in options.__dict__.items():
         logger.info('\t%s: %s' %(k,v))
-
-    if not any([options.mq_txt_dir, options.prosit]):
-        msg = 'Either an MaxQuant output directory or Prosit file is required'
-        logger.error(msg)
-        logger.error('Exiting')
-        raise IncorrectInputError(msg)
 
     logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
@@ -591,38 +303,12 @@ def assemble(options):
     logger.info('Writing outputs to %s' %options.out_dir)
 
     logger.info('Preparing spectral template')
-    spectra = make_spectra(options)
+    acquisition_schema = AcquisitionSchema(options)
+    spectra = acquisition_schema.get_spectra()
 
     logger.info('Constructing peptide models')
-    if options.use_existing_peptide_file:
-        logger.info('Using existing peptide file')
-
-        if not os.path.isfile(options.use_existing_peptide_file):
-            msg = 'The specified peptide file was not found'
-            logger.info(msg)
-            logger.info('Exiting')
-            raise IncorrectInputError(msg)
-
-        with open( options.use_existing_peptide_file , 'rb') as handle:
-            peptides = pickle.load(handle)
-
-    else:
-        if options.mq_txt_dir:
-            peptides = read_peptides_from_mq(options)
-        elif options.prosit:
-            peptides = read_peptides_from_prosit(options)
-
-        if options.decoy_msp_file:
-            logger.info('Reading decoy file')
-            decoys = read_decoys_from_msp(options, peptides)
-            peptides = peptides + decoys
-
-        logger.info('Simulating isotope patterns')
-        for p in peptides:
-            p.get_ms1_isotope_pattern(options)
-
-        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
-            pickle.dump(peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    input_peptides = InputReader(options)
+    peptides = input_peptides.get_peptides()
 
     if options.rescale_rt:
         logger.info('Scaling retention times')
@@ -633,12 +319,6 @@ def assemble(options):
 
     logger.info('Calculating retention lengths')
     peptides = calculate_retention_lengths(options, peptides, spectra)
-
-    if len(peptides) == 0:
-        msg = 'No peptides to write'
-        logger.error(msg)
-        logger.info('Exiting')
-        raise NoPeptidesToSimulateError(msg)
 
     for groupi in range(options.n_groups):
         for samplei in range(options.samples_per_group):
