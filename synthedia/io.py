@@ -137,7 +137,6 @@ class AcquisitionSchema (object):
         return schema
 
     def make_spectra(self, options):
-        logger = logging.getLogger("assembly_logger")
         spectra = []
         total_run_time = 0
         while total_run_time < options.new_run_length + 2 * options.rt_buffer * 60:
@@ -146,6 +145,7 @@ class AcquisitionSchema (object):
                     Spectrum( total_run_time, entry['order'], entry['isolation_range'], options)
                 )
                 total_run_time += entry['length']
+
         return spectra
 
 class InputReader (object):
@@ -153,8 +153,8 @@ class InputReader (object):
     def __init__(self, options):
         logger = logging.getLogger("assembly_logger")
 
-        if not any([options.mq_txt_dir, options.prosit]):
-            msg = 'Either an MaxQuant output directory or Prosit file is required'
+        if not any([options.mq_txt_dir, options.prosit, options.use_existing_peptide_file]):
+            msg = 'Either an MaxQuant output directory, Prosit library, or peptide file from a previous simulation is required'
             logger.error(msg)
             logger.error('Exiting')
             raise IncorrectInputError(msg)
@@ -420,6 +420,7 @@ def generate_group_and_sample_abundances(options):
         ] for group_abundance_offset in peptide_abundance_offsets_between_groups
     ]
 
+    sample_abundance_offsets[0][0] = 0
     return peptide_abundance_offsets_between_groups, sample_abundance_offsets
 
 def generate_group_and_sample_probabilities(options):
@@ -440,5 +441,3 @@ def generate_group_and_sample_probabilities(options):
             ])
 
     return found_in_group, found_in_sample
-
-

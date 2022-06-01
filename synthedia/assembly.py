@@ -1,4 +1,4 @@
-import os, sys, time, copy
+import os, sys, time, copy, pickle
 import random, math, datetime, logging
 import pandas as pd
 import numpy as np
@@ -217,6 +217,11 @@ def get_rt_range_from_input_data(options):
     elif options.prosit:
         prosit = pd.read_csv(options.prosit, sep = ',')
         rts = prosit['iRT'].tolist()
+    elif options.use_existing_peptide_file:
+        with open( options.use_existing_peptide_file , 'rb') as handle:
+            peptides = pickle.load(handle)
+        rts = [p.rt / 60 for p in peptides]
+
     return get_original_run_length(rts)
 
 def get_extra_parameters(options):
@@ -310,9 +315,9 @@ def assemble(options):
     input_peptides = InputReader(options)
     peptides = input_peptides.get_peptides()
 
-    if options.rescale_rt:
-        logger.info('Scaling retention times')
-        peptides = calculate_scaled_retention_times(options, peptides)
+    if options.use_existing_peptide_file:
+       logger.info('Scaling retention times')
+       peptides = calculate_scaled_retention_times(options, peptides)
 
     logger.info('Calculating feature windows')
     calculate_feature_windows(options, peptides, spectra)
