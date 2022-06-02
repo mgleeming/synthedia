@@ -139,13 +139,19 @@ class AcquisitionSchema (object):
     def make_spectra(self, options):
         spectra = []
         total_run_time = 0
+        synthedia_id_counter = 0
         while total_run_time < options.new_run_length + 2 * options.rt_buffer * 60:
             for entry in self.schema:
                 spectra.append(
-                    Spectrum( total_run_time, entry['order'], entry['isolation_range'], options)
+                    Spectrum(
+                        synthedia_id_counter,
+                        total_run_time, entry['order'],
+                        entry['isolation_range'],
+                        options
+                    )
                 )
                 total_run_time += entry['length']
-
+                synthedia_id_counter += 1
         return spectra
 
 class InputReader (object):

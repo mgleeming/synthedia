@@ -69,6 +69,9 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
         for p in peptide_subset:
 
+            if spectrum.rt > p.max_scaled_peak_rt:
+                continue
+
             # skip missing peptides
             if (p.found_in_sample[groupi][samplei] == 0):
                 continue

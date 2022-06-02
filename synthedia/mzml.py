@@ -103,7 +103,8 @@ class MZMLWriter():
         return
 
 class Spectrum():
-    def __init__(self, rt, order, isolation_range, options):
+    def __init__(self, synthedia_id, rt, order, isolation_range, options):
+        self.synthedia_id = synthedia_id
         self.rt = rt
         self.order = order
         self.centroid = False
@@ -119,7 +120,6 @@ class Spectrum():
 
             self.lower_offset = (isolation_range[1] - isolation_range[0]) / 2
             self.upper_offset = (isolation_range[1] - isolation_range[0]) / 2
-
         return
 
     def make_spectrum(self, MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS):
@@ -139,7 +139,6 @@ class Spectrum():
         self.indicies = []
         return
 
-
     def add_peaks(self, options, p, groupi, samplei):
         if self.centroid:
             self.add_centroid_peaks(options, p, groupi, samplei)
@@ -152,9 +151,7 @@ class Spectrum():
         abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = options.rt_peak_model(self.rt, **{
-            'mu': peptide_scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
-        })
+        intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
 
         # apply chromatographic instability if needed
         if options.rt_instability > 0:
@@ -201,9 +198,7 @@ class Spectrum():
         abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = options.rt_peak_model(self.rt, **{
-            'mu': peptide_scaled_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
-        })
+        intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
 
         # apply chromatographic instability if needed
         if options.rt_instability > 0:
@@ -279,3 +274,5 @@ class Spectrum():
         del self.ints
         del self.indicies
         return
+
+
