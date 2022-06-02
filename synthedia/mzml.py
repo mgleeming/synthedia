@@ -43,8 +43,6 @@ class MZMLWriter():
 
         if spec.centroid:
             mzs = np.asarray(spec.mzs)
-#            if len(spec.mzs) > 0:
-#                print(spec.mzs)
             ints = np.asarray(spec.ints)
             mask = np.argsort(mzs)
             mzs = mzs[mask]

@@ -36,6 +36,11 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     min_rt = min([p.min_scaled_peak_rt for p in peptides])
     max_rt = max([p.max_scaled_peak_rt for p in peptides])
 
+    return_peptides = []
+
+    peptides.sort(key=lambda p: p.scaled_rt, reverse = True)
+
+    peptide_subset = []
     for spectrumi, spectrum in enumerate(spectra):
 
         if (spectrum.rt < min_rt) or (spectrum.rt > max_rt):
@@ -49,11 +54,18 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         # make spec numpy arrays on the fly to save memory
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        peptide_subset = [
-            p for p in peptides if all(
-                [p.min_scaled_peak_rt < spectrum.rt, spectrum.rt < p.max_scaled_peak_rt]
-            )
-        ]
+        while True:
+            if len(peptides) == 0: break
+            if spectrum.rt < peptides[-1].min_scaled_peak_rt: break
+            if spectrum.rt >= peptides[-1].min_scaled_peak_rt:
+                peptide_subset.append(peptides.pop())
+
+        while True:
+            if len(peptide_subset) == 0: break
+            if spectrum.rt <= peptide_subset[0].max_scaled_peak_rt:
+                break
+            if spectrum.rt > peptide_subset[0].max_scaled_peak_rt:
+                return_peptides.append(peptide_subset.pop(0))
 
         for p in peptide_subset:
 
@@ -73,10 +85,13 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         # this deletes m/z and intensity arrays that aren't needed anymore
         spectrum.clear()
 
+    while len(peptide_subset) != 0:
+        return_peptides.append(peptide_subset.pop())
+
     # close consumer
     run.close()
 
-    return
+    return return_peptides
 
 def write_peptide_target_table(options, peptides):
 
@@ -328,7 +343,7 @@ def assemble(options):
     for groupi in range(options.n_groups):
         for samplei in range(options.samples_per_group):
             logger.info('Writing peptides to spectra')
-            populate_spectra(options, peptides, spectra, groupi, samplei)
+            peptides = populate_spectra(options, peptides, spectra, groupi, samplei)
 
     logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides)
