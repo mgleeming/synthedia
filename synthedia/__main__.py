@@ -23,6 +23,8 @@ def main(args = None):
                         help = 'Prefix for output files.')
     io_args.add_argument( '--config', required = False, type = str, default = None, ## skip
                         help = 'Path to *.yaml config file.')
+    io_args.add_argument( '--silent', action= 'store_true',
+                        help = 'Do not print logging output to terminal')
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
     instrument_args.add_argument( '--ms1_min_mz', required = False, type = int, default = 350,

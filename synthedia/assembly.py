@@ -290,10 +290,11 @@ def configure_logging(options):
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+    if not options.silent:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
 
     fh = logging.FileHandler(os.path.join(options.out_dir, 'assembly.log'))
     fh.setLevel(logging.DEBUG)

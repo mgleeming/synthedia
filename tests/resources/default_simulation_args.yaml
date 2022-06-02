@@ -29,6 +29,7 @@ new_run_length: 0
 num_decoys: 500
 original_run_length: 0
 out_dir: null
+silent: true
 output_label: output
 prob_missing_in_group: 0
 prob_missing_in_sample: 0
