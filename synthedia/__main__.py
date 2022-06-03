@@ -26,6 +26,10 @@ def main(args = None):
     io_args.add_argument( '--silent', action= 'store_true',
                         help = 'Do not print logging output to terminal')
 
+    processing_args = parser.add_argument_group("Processing") ## skip
+    processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() , ## skip
+                        help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
+
     instrument_args = parser.add_argument_group("Instrument Parameters")
     instrument_args.add_argument( '--ms1_min_mz', required = False, type = int, default = 350,
                         help = 'Minimum m/z at MS1 level.')

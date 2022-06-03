@@ -1,8 +1,9 @@
-import os, sys, logging, random, pickle
+import os, sys, logging, random, pickle, multiprocessing
 import pandas as pd
 import numpy as np
 from .peptide import SyntheticPeptide
 from .mzml import Spectrum
+from itertools import repeat
 
 class NoPeptidesToSimulateError(Exception):
     pass
@@ -154,6 +155,11 @@ class AcquisitionSchema (object):
                 synthedia_id_counter += 1
         return spectra
 
+def simulate_isotope_patterns(options, peptide_subset):
+    for p in peptide_subset:
+        p.get_ms1_isotope_pattern(options)
+    return peptide_subset
+
 class InputReader (object):
 
     def __init__(self, options):
@@ -183,8 +189,28 @@ class InputReader (object):
                 self.peptides = self.peptides + decoys
 
             logger.info('Simulating isotope patterns')
-            for p in self.peptides:
-                p.get_ms1_isotope_pattern(options)
+            if options.num_processors == 1:
+                for p in self.peptides:
+                    p.get_ms1_isotope_pattern(options)
+            else:
+                pool = multiprocessing.Pool(processes = options.num_processors)
+
+                # split work into equal sized lists
+                arg_sets = [[] for _ in range(options.num_processors)]
+                counter = 0
+                for p in self.peptides:
+                    arg_sets[counter].append(p)
+                    counter += 1
+                    if counter == options.num_processors:
+                        counter = 0
+
+                # send work to procs and collect results
+                self.peptides = []
+                for _ in pool.starmap(simulate_isotope_patterns, zip(repeat(options), arg_sets)):
+                    self.peptides.extend(list(_))
+
+                pool.close()
+                pool.join()
 
         if len(self.peptides) == 0:
             msg = 'No peptides or decoys created - Nothing to simulate!'
