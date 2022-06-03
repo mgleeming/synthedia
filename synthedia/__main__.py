@@ -9,29 +9,29 @@ def main(args = None):
     )
 
     io_args = parser.add_argument_group("Input/Output")
-    io_args.add_argument( '--mq_txt_dir', required = False, type = str, ## main
+    io_args.add_argument( '--mq_txt_dir', required = False, type = str,
                         help = 'Path to MaxQuat "txt" directory.')
-    io_args.add_argument( '--prosit', required = False, type = str, ## main
+    io_args.add_argument( '--prosit', required = False, type = str,
                         help = 'Path to prosit prediction library.')
     io_args.add_argument( '--prosit_peptide_abundance_mean', required = False, type = float, default = 22,
                         help = 'Mean log2 abundance used to simulate peptide abundances for prosit input types. Not used for MaxQuat input types.')
-    io_args.add_argument( '--prosit_peptide_abundance_stdev', required = False, type = float, default = 2,
+    io_args.add_argument( '--prosit_peptide_abundance_stdev', required = False, type = float, default = 3,
                         help = 'Mean log2 abundance used to simulate peptide abundances for prosit input types. Not used for MaxQuant input types.')
-    io_args.add_argument( '--acquisition_schema', required = False, type = str, ## file
+    io_args.add_argument( '--acquisition_schema', required = False, type = str,
                         help = 'Path to file defining MS2 acquisition schema.')
-    io_args.add_argument( '--use_existing_peptide_file', required = False, type = str, ## skip
+    io_args.add_argument( '--use_existing_peptide_file', required = False, type = str,
                         help = 'Path to an existin peptide file which will be used.')
-    io_args.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'), ## skip
+    io_args.add_argument( '--out_dir', required = False, type = str, default = os.path.join(os.getcwd(), 'output'),
                         help = 'Output directory where results should be written.')
     io_args.add_argument( '--output_label', required = False, type = str, default = 'output',
                         help = 'Prefix for output files.')
-    io_args.add_argument( '--config', required = False, type = str, default = None, ## skip
+    io_args.add_argument( '--config', required = False, type = str, default = None,
                         help = 'Path to *.yaml config file.')
     io_args.add_argument( '--silent', action= 'store_true',
                         help = 'Do not print logging output to terminal')
 
-    processing_args = parser.add_argument_group("Processing") ## skip
-    processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() , ## skip
+    processing_args = parser.add_argument_group("Processing")
+    processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
 
     instrument_args = parser.add_argument_group("Instrument Parameters")
@@ -89,8 +89,6 @@ def main(args = None):
                         help = 'Shape factor for exponentially modified gaussian in the mass spectral domain. Must be greater than 0. Increasing K results in more heavily tailed mass spectral peaks. This parameter is inactive unless --mz_peak_model is not set to exponentially_modified_gaussian.')
     simulation_args.add_argument( '--rt_emg_k', required = False, type = float, default = 1,
                         help = 'Shape factor for exponentially modified gaussian in the retention time domain. Must be greater than 0. Increasing K results in more heavily tailed chromatographic peaks. This parameter is inactive unless --rt_peak_model is not set to exponentially_modified_gaussian.')
-    simulation_args.add_argument( '--rescale_rt', action = 'store_true', ## skip
-                        help = 'Calculate new retention time values. This is useful if an existing peptide file and new gradient lengths are to be simulated.')
     simulation_args.add_argument( '--prob_missing_in_sample', required = False, type = float, default = 0,
                         help = 'Probability (0-100) that a peptide is missing in any given sample')
     simulation_args.add_argument( '--prob_missing_in_group', required = False, type = float, default = 0,
@@ -121,7 +119,7 @@ def main(args = None):
                         help = 'Standard deviation of a normal distribution from which within group samples will be drawn.')
 
     decoy_args = parser.add_argument_group("Decoys")
-    decoy_args.add_argument( '--decoy_msp_file', required = False, type = str, ## skip
+    decoy_args.add_argument( '--decoy_msp_file', required = False, type = str,
                         help = 'Path to MSP file. Note - must include retention times.')
     decoy_args.add_argument( '--num_decoys', required = False, type = int, default = 500,
                         help = 'Number of decoy peaks to simulate')
