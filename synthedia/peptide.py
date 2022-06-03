@@ -98,7 +98,7 @@ class SyntheticPeptide():
         if (evidence_entry is not None) and (msms_entry is not None):
             self.populate_from_mq(evidence_entry, msms_entry)
         elif prosit_entry is not None:
-            self.populate_from_prosit(prosit_entry)
+            self.populate_from_prosit(options, prosit_entry)
         elif msp_entry is not None:
             self.decoy = True
             self.populate_from_msp(options, *msp_entry)
@@ -218,7 +218,7 @@ class SyntheticPeptide():
         self.mass = self.mz - PROTON
         return
 
-    def populate_from_prosit(self, prosit_entry):
+    def populate_from_prosit(self, options, prosit_entry):
         self.sequence = prosit_entry['StrippedPeptide'].iloc[0]
         self.charge = prosit_entry['PrecursorCharge'].iloc[0]
 
@@ -228,7 +228,10 @@ class SyntheticPeptide():
         self.rt = prosit_entry['Retention time'].iloc[0] * 60
         self.protein = 'None'
 
-        self.intensity = 100000000
+        self.intensity = 2 ** np.random.normal(
+            loc = options.prosit_peptide_abundance_mean,
+            scale = options.prosit_peptide_abundance_stdev
+        )
 
         self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
         self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]

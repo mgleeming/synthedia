@@ -1,6 +1,8 @@
 acquisition_schema: null
 all: false
 num_processors: 1
+prosit_peptide_abundance_mean: 22
+prosit_peptide_abundance_stdev: 2
 between_group_stdev: 1.0
 centroid_ms1: false
 centroid_ms2: false

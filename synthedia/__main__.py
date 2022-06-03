@@ -13,6 +13,10 @@ def main(args = None):
                         help = 'Path to MaxQuat "txt" directory.')
     io_args.add_argument( '--prosit', required = False, type = str, ## main
                         help = 'Path to prosit prediction library.')
+    io_args.add_argument( '--prosit_peptide_abundance_mean', required = False, type = float, default = 22,
+                        help = 'Mean log2 abundance used to simulate peptide abundances for prosit input types. Not used for MaxQuat input types.')
+    io_args.add_argument( '--prosit_peptide_abundance_stdev', required = False, type = float, default = 2,
+                        help = 'Mean log2 abundance used to simulate peptide abundances for prosit input types. Not used for MaxQuant input types.')
     io_args.add_argument( '--acquisition_schema', required = False, type = str, ## file
                         help = 'Path to file defining MS2 acquisition schema.')
     io_args.add_argument( '--use_existing_peptide_file', required = False, type = str, ## skip

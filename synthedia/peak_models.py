@@ -49,4 +49,3 @@ class PeakModels(object):
             )
         return mz_peak_model
 
-
