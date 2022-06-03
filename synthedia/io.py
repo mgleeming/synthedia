@@ -457,14 +457,14 @@ def generate_group_and_sample_abundances(options):
 
 def generate_group_and_sample_probabilities(options):
 
-    found_in_group = [1 if random.randint(0,100) >= options.prob_missing_in_group else 0 for _ in range(options.n_groups)]
+    found_in_group = [1 if random.randint(0,100) > options.prob_missing_in_group else 0 for _ in range(options.n_groups)]
     found_in_sample = []
 
     for group in found_in_group:
 
         if group == 1:
             found_in_sample.append([
-                1 if random.randint(0,100) >= options.prob_missing_in_sample else 0 for _ in range(options.samples_per_group)
+                1 if random.randint(0,100) > options.prob_missing_in_sample else 0 for _ in range(options.samples_per_group)
             ])
 
         else:
