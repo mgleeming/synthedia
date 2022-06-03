@@ -175,6 +175,29 @@ class InputReader (object):
 
         if options.use_existing_peptide_file:
             self.peptides = self.read_pickle(options)
+
+            # need to check that num_gorups and sample per group is the same as that used for the pickel file
+            # -- these figures are used to generate the sample and group abundance offsets
+
+            n_groups_pickle = len(self.peptides[0].peptide_abundance_offsets_between_groups)
+            n_samples_pickle = len(self.peptides[0].sample_abundance_offsets[0])
+
+            try:
+                assert n_groups_pickle == options.n_groups
+                assert n_samples_pickle == options.samples_per_group
+            except AssertionError:
+                msg = '''The supplied peptide pickle file has different number of groups and/or samples per group compared to the requested parameters.\n \
+                    Peptide file n_groups = %s, requested n_groups = %s \n \
+                    Peptide file samples_per_group = %s, requested samples_per_group = %s''' %(
+                    n_groups_pickle,
+                    options.n_groups,
+                    n_samples_pickle,
+                    options.samples_per_group
+                )
+                logger.error(msg)
+                logger.error('Exiting')
+                raise IncorrectInputError(msg)
+
         else:
             if options.mq_txt_dir:
                 logger.info('Reading MaxQuant directory')
