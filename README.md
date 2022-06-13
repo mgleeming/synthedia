@@ -129,41 +129,43 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
 ## Synthedia parameter reference
 
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
-                 [--acquisition_schema ACQUISITION_SCHEMA]
-                 [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
-                 [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
-                 [--config CONFIG] [--num_processors NUM_PROCESSORS]
-                 [--ms1_min_mz MS1_MIN_MZ] [--ms1_max_mz MS1_MAX_MZ]
-                 [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
-                 [--ms1_resolution MS1_RESOLUTION]
-                 [--ms2_resolution MS2_RESOLUTION]
-                 [--ms1_scan_duration MS1_SCAN_DURATION]
-                 [--ms2_scan_duration MS2_SCAN_DURATION]
-                 [--isolation_window ISOLATION_WINDOW]
-                 [--resolution_at RESOLUTION_AT]
-                 [--n_points_gt_fwhm N_POINTS_GT_FWHM]
-                 [--rt_peak_fwhm RT_PEAK_FWHM]
-                 [--rt_instability RT_INSTABILITY]
-                 [--original_run_length ORIGINAL_RUN_LENGTH]
-                 [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
-                 [--ms_clip_window MS_CLIP_WINDOW]
-                 [--ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY]
-                 [--ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY]
-                 [--centroid] [--write_empty_spectra]
-                 [--mz_peak_model MZ_PEAK_MODEL]
-                 [--rt_peak_model RT_PEAK_MODEL] [--mz_emg_k MZ_EMG_K]
-                 [--rt_emg_k RT_EMG_K] [--rescale_rt]
-                 [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
-                 [--prob_missing_in_group PROB_MISSING_IN_GROUP]
-                 [--mq_pep_threshold MQ_PEP_THRESHOLD]
-                 [--filterTerm FILTERTERM] [--tic] [--schema] [--all]
-                 [--n_groups N_GROUPS] [--samples_per_group SAMPLES_PER_GROUP]
-                 [--between_group_stdev BETWEEN_GROUP_STDEV]
-                 [--within_group_stdev WITHIN_GROUP_STDEV]
-                 [--decoy_msp_file DECOY_MSP_FILE] [--num_decoys NUM_DECOYS]
-                 [--simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS]
+                     [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
+                     [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
+                     [--acquisition_schema ACQUISITION_SCHEMA]
+                     [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
+                     [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
+                     [--config CONFIG] [--silent]
+                     [--num_processors NUM_PROCESSORS] [--ms1_min_mz MS1_MIN_MZ]
+                     [--ms1_max_mz MS1_MAX_MZ] [--ms2_min_mz MS2_MIN_MZ]
+                     [--ms2_max_mz MS2_MAX_MZ] [--ms1_resolution MS1_RESOLUTION]
+                     [--ms2_resolution MS2_RESOLUTION]
+                     [--ms1_scan_duration MS1_SCAN_DURATION]
+                     [--ms2_scan_duration MS2_SCAN_DURATION]
+                     [--isolation_window ISOLATION_WINDOW]
+                     [--resolution_at RESOLUTION_AT]
+                     [--n_points_gt_fwhm N_POINTS_GT_FWHM]
+                     [--rt_peak_fwhm RT_PEAK_FWHM]
+                     [--rt_instability RT_INSTABILITY]
+                     [--original_run_length ORIGINAL_RUN_LENGTH]
+                     [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
+                     [--ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY]
+                     [--ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY]
+                     [--centroid_ms1] [--centroid_ms2] [--write_empty_spectra]
+                     [--mz_peak_model MZ_PEAK_MODEL]
+                     [--rt_peak_model RT_PEAK_MODEL] [--mz_emg_k MZ_EMG_K]
+                     [--rt_emg_k RT_EMG_K]
+                     [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
+                     [--prob_missing_in_group PROB_MISSING_IN_GROUP]
+                     [--mq_pep_threshold MQ_PEP_THRESHOLD]
+                     [--filterTerm FILTERTERM] [--tic] [--schema] [--all]
+                     [--n_groups N_GROUPS] [--samples_per_group SAMPLES_PER_GROUP]
+                     [--between_group_stdev BETWEEN_GROUP_STDEV]
+                     [--within_group_stdev WITHIN_GROUP_STDEV]
+                     [--decoy_msp_file DECOY_MSP_FILE] [--num_decoys NUM_DECOYS]
+                     [--simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS]
 
-    Generate DIA data from DDA MaxQuant output.
+    Generate synthetic DIA LC-MS/MS bottom up proteomics data with known
+    composition.
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -172,6 +174,14 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --mq_txt_dir MQ_TXT_DIR
                             Path to MaxQuat "txt" directory.
       --prosit PROSIT       Path to prosit prediction library.
+      --prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN
+                            Mean log2 abundance used to simulate peptide
+                            abundances for prosit input types. Not used for
+                            MaxQuat input types.
+      --prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV
+                            Standard deviation of gaussian used to simulate
+                            peptide abundances for prosit input types. Not used
+                            for MaxQuant input types.
       --acquisition_schema ACQUISITION_SCHEMA
                             Path to file defining MS2 acquisition schema.
       --use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE
@@ -180,6 +190,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --output_label OUTPUT_LABEL
                             Prefix for output files.
       --config CONFIG       Path to *.yaml config file.
+      --silent              Do not print logging output to terminal
 
     Processing:
       --num_processors NUM_PROCESSORS
@@ -239,11 +250,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             completely
 
     Simulation:
-      --ms_clip_window MS_CLIP_WINDOW
-                            m/z window surrounding an MS peak that should be
-                            considered when simulating peak intensities. For high
-                            resolution data, this normally does not need to be
-                            changed.
       --ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY
                             Peptide elution profiles are simulated as gaussian
                             peaks. This value sets the minimum gaussian curve
@@ -254,8 +260,10 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             peaks. This value sets the minimum gaussian curve
                             intensitiy for a peptide to be simulated in MS2
                             spectra.
-      --centroid            If given, simulated mass spectra will be centroided.
-                            Otherwise, profile data will be written.
+      --centroid_ms1        If given, simulated MS1 mass spectra will be
+                            centroided. Otherwise, profile data will be written.
+      --centroid_ms2        If given, simulated MS2 mass spectra will be
+                            centroided. Otherwise, profile data will be written.
       --write_empty_spectra
                             Write empty mass sepctra to the output data file
       --mz_peak_model MZ_PEAK_MODEL
@@ -278,9 +286,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             chromatographic peaks. This parameter is inactive
                             unless --rt_peak_model is not set to
                             exponentially_modified_gaussian.
-      --rescale_rt          Calculate new retention time values. This is useful if
-                            an existing peptide file and new gradient lengths are
-                            to be simulated.
       --prob_missing_in_sample PROB_MISSING_IN_SAMPLE
                             Probability (0-100) that a peptide is missing in any
                             given sample
@@ -325,7 +330,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Number of decoy peaks to simulate
       --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
                             Simulate n most intense fragments of the decoy
-                            compound.
+                            compound
 
 ## Viewing mzML files
 

@@ -5,7 +5,7 @@ from synthedia import assembly
 def main(args = None):
 
     parser = argparse.ArgumentParser(
-        description = 'Generate DIA data from DDA MaxQuant output.'
+        description = 'Generate synthetic DIA LC-MS/MS bottom up proteomics data with known composition.'
     )
 
     io_args = parser.add_argument_group("Input/Output")
