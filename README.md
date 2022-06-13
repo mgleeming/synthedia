@@ -1,6 +1,7 @@
 # Synthedia
 
 [![Synthedia Integration](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml/badge.svg?branch=main)](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml)
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 A wide range of software is available to identify and quantify peptides in bottom-up proteomics data acquired by LC-MS/MS and, frequently, analysis of the same input data file with two different packages yields different results. These differences likely originate from differences in algorithms for preprocessing data, matching MSn spectra to peptides, quantifying peak areas, matching assignments between samples as well as differences in the myriad parameters that must be set by the user to initiate an analysis. Thorough analysis of these variables is, however, complicated since the ‘true’ sample composition of real data files is almost never completely known.
 
