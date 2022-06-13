@@ -375,7 +375,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
 
 ## Viewing mzML files
 
-The mzML files produced can be viewed in many different freely available software. The [TOPPView](https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/nightly/html/TOPP_TOPPView.html) package which is part of [OpenMS](https://www.openms.de/).
+The mzML files produced can be viewed in many different freely available software such as the [TOPPView](https://abibuilder.informatik.uni-tuebingen.de/archive/openms/Documentation/nightly/html/TOPP_TOPPView.html) package which is part of [OpenMS](https://www.openms.de/).
 
 ![image](https://user-images.githubusercontent.com/16992583/160973872-4009c5cf-57c6-49a5-a868-edb21fa5e190.png)
 
