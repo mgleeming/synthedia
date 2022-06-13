@@ -65,6 +65,9 @@ To create a Synthedia-compatible Prosit spectral library:
 
 Once processing is complete, the resulting file can be used with Synthedia
 
+When Prosit inputs are given, Synthedia models peptide precursor abundances using a Gaussian distribution of Log2 instnsities which approximates the disributions typically observed upon anlysis of real data. The parameters of this distribution (mean and standard deviation) can be specified with the ```--prosit_peptide_abundance_mean``` and ```--prosit_peptide_abundance_stdev``` parameters which have defaults of 22 and 3 respectively.
+
+
 #### MaxQuant 'txt' directories
 
 As an alternative to Prosit, Synthedia can read and simulate DIA data based upon the MaxQuant processing results of a file acquired using a Data-Dependent Acquisition (DDA) strategy. In this case, peptide fragment ions are generated based on the matched ions for a PSM reported in the MaxQuant ```msms.txt``` file from the ```Masses``` and ```Intensities``` columns. Note: these are only those fragment ions that MaxQuant assigns as matching a given peptide - they may not necessarily provide a 'full' sequence coverage and may not be correctly assigned in some cases.
@@ -76,8 +79,6 @@ Synthedia offers options to filter reverse and contaminant peptides as well as f
 
 DIA-LC-MS/MS data can be acquired in many ways. The default invocation of synthedia creates non-overlapping, 30 Th windows between m/z 350 and m/z 1600. To simulate data using different DIA acquisition strategies, a file defining the acquisition schema can be supplied. An example acquisition schema file and blank template are provided in the ```templates``` directory.
 
-The acquisition schema file must define both MS1 and MS2 spectra.
-
 ## Decoy signals
 
 LC-MS/MS analysis of bottom-up proteomics samples can be complicated by the presence of ions derived from non-peptide sample contaminants. To mimic this, decoy ions can be simulated together with peptide signals by specifying a decoy database in NIST '.msp' format. See the section 'NIST Text Format of Individual Spectra' in [this document](https://chemdata.nist.gov/mass-spc/ms-search/docs/Ver20Man_11.pdf) for details on the .msp format.
@@ -86,6 +87,35 @@ Custom .msp files can be specified or pre-prepared files can be dowloaded from [
 
 The number of decoy peaks to simulate, as well as the maximum number of fragments to simulate per decoy, can be specified throught the command line arguments ```num_decoys``` and ```simulate_top_n_decoy_fragments```.
 
+## Compatibility of Synthedia mzML files with other softeare
+
+The mzML files generated with Synthedia have been tested with:
+
+- DIA-NN
+- DIAUmppire
+- EncyclopeDIA
+- MSConvert
+- OpenMS/ToppView
+
+The mzML files are known to not be compatible with MaxQuant (at least as at MaxQuant Version 2.0.3.0)
+
+## Notes about the resulting data
+
+### Peptide vs protein abundances
+In a real experiment, all peptides from an up-regulated protein should be observed with increased abundance compared to a control group. Synthedia models ion abundances at the peptide level only. This means that, in the case of a two-group simulation, peptides from the same protein may have very different (even opposing) directions of abundance change between groups. This is primarily because the Prosit input type (which is preferred) does not contain mappings between peptides and input proteins and we wished to maintain the ability to simulated arbitrary peptide data.
+
+As a result of this, if mzML files generated with synthedia are analysed with DIA analysis software, the main comparison in abundances should be made at the peptide level.
+
+### Synthetic vs real data
+
+While we have endeavoured to provide a range of options that allow for simulation of a broad range of chromatographic and mass spectral variables, many experimental processes are not modelled which will cause deviations between simulated and real data. As such, users are warned that simulations with Synthedia do not completely re-create experimental complexity and should be used as an investigational tool only.
+
+As an example, Synthedia offers the capability to simulate the same set of precursors as if acquired on different length chromatographic gradients. This means that data acquired on a lengthy gradients could be reconstructed to approximate acquisition on shorter gradients. In these cases, Synthedia simply models spectra containing signals from many peptides as a simple superposition of their individual signals. In reality however, ion supression effects would result in data that may look substantially different from that which would be produced if a comparable experimental workflow were to be executed.
+
+### Post-translational modifications
+
+Synthedia currently has very limited support for simulating peptides with post-translational modifications. Currently, all cysteine residues are assumed to be modified by carbamidomethylation. No other post-translational modifications are supported.
+
 ## Usage
 
 A basic invokation of synthedia using a MaxQuant input directory and accepting all other parameters as default is below:
@@ -93,6 +123,16 @@ A basic invokation of synthedia using a MaxQuant input directory and accepting a
 synthedia --mq_txt_dir /path/to/MQ/results/txt
 ```
 This will create a directory at the current working directory called 'output' containing the processing results.
+
+Note that the default invocation will produce mzML files with profile peaks at both MS1 and MS2 levels. To create centroided data (which is significantly faster):
+```
+synthedia --mq_txt_dir /path/to/MQ/results/txt --centroid_ms1 --centroid_ms2
+```
+
+To create profile MS1 and centroid MS2 data:
+```
+synthedia --mq_txt_dir /path/to/MQ/results/txt --centroid_ms2
+```
 
 To plot diagnostic graphics and provide a custom path to an output directory:
 ```
@@ -338,3 +378,6 @@ The mzML files produced can be viewed in many different freely available softwar
 
 ![image](https://user-images.githubusercontent.com/16992583/160973872-4009c5cf-57c6-49a5-a868-edb21fa5e190.png)
 
+## Support
+- If you notice bugs or have suggestions for improvements, please contact us [here](https://github.com/mgleeming/synthedia/issues).
+- Or better still, fork and submit a pull request :)
