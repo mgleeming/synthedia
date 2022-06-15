@@ -304,11 +304,6 @@ def configure_logging(options):
 
 def assemble(options):
 
-    try:
-        os.makedirs(options.out_dir)
-    except:
-        pass
-
     logger = configure_logging(options)
 
     start = datetime.datetime.now()
@@ -317,6 +312,11 @@ def assemble(options):
     logger.info('Config args:')
     for k,v in options.__dict__.items():
         logger.info('\t%s: %s' %(k,v))
+
+    try:
+        os.makedirs(options.out_dir)
+    except:
+        pass
 
     logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
