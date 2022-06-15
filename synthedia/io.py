@@ -269,6 +269,18 @@ class InputReader (object):
 
         logger = logging.getLogger("assembly_logger")
 
+        if not os.path.isfile(os.path.join(options.mq_txt_dir, 'msms.txt')):
+            msg = 'The specified MaxQuant msms.txt file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
+
+        if not os.path.isfile(os.path.join(options.mq_txt_dir, 'evidence.txt')):
+            msg = 'The specified MaxQuant evidence.txt file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
+
         # read inputs
         msms = pd.read_csv(os.path.join(options.mq_txt_dir, 'msms.txt'), sep = '\t')
         evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
@@ -341,6 +353,12 @@ class InputReader (object):
 
         logger = logging.getLogger("assembly_logger")
 
+        if not os.path.isfile(os.path.join(options.prosit)):
+            msg = 'The specified Prosit library file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
+
         # read inputs
         prosit = pd.read_csv(options.prosit, sep = ',')
 
@@ -393,6 +411,12 @@ class InputReader (object):
         logger = logging.getLogger("assembly_logger")
 
         peptide_intensities = [p.intensity for p in peptides]
+
+        if not os.path.isfile(os.path.join(options.decoy_msp_file)):
+            msg = 'The specified Decoy MSP file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
 
         # read inputs
         lipids = []

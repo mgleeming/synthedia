@@ -15,6 +15,9 @@ class NoPeptidesToSimulateError(Exception):
 class AcquisitionSchemaError(Exception):
     pass
 
+class IncorrectInputError(Exception):
+    pass
+
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
@@ -229,13 +232,37 @@ def get_original_run_length(rts):
         return max(rts) + abs(min(rts))
 
 def get_rt_range_from_input_data(options):
+
+    logger = logging.getLogger("assembly_logger")
+
     if options.mq_txt_dir:
+        if not os.path.isfile(os.path.join(options.mq_txt_dir, 'msms.txt')):
+            msg = 'The specified MaxQuant msms.txt file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
+        if not os.path.isfile(os.path.join(options.mq_txt_dir, 'evidence.txt')):
+            msg = 'The specified MaxQuant evidence.txt file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
         evidence = pd.read_csv(os.path.join(options.mq_txt_dir, 'evidence.txt'), sep = '\t')
         rts = evidence['Retention time'].tolist()
     elif options.prosit:
+        if not os.path.isfile(os.path.join(options.prosit)):
+            msg = 'The specified Prosit library file does not exist'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
         prosit = pd.read_csv(options.prosit, sep = ',')
         rts = prosit['iRT'].tolist()
     elif options.use_existing_peptide_file:
+        if not os.path.isfile(options.use_existing_peptide_file):
+            msg = 'The specified peptide file was not found'
+            logger.info(msg)
+            logger.info('Exiting')
+            raise IncorrectInputError(msg)
+
         with open( options.use_existing_peptide_file , 'rb') as handle:
             peptides = pickle.load(handle)
         rts = [p.rt / 60 for p in peptides]
