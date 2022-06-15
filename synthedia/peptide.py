@@ -207,10 +207,18 @@ class SyntheticPeptide():
         self.sequence = msp_entry['NAME']
         self.formula = msp_entry['FORMULA']
         self.ms2_peaks = msp_entry['fragments']
-        if len(self.ms2_peaks) > 15:
+
+        if len(self.ms2_peaks) > options.simulate_top_n_decoy_fragments:
             self.ms2_peaks.sort(key=lambda x: x[1], reverse = True)
             self.ms2_peaks = self.ms2_peaks[0:options.simulate_top_n_decoy_fragments]
+
         self.rt = float(msp_entry['RETENTIONTIME'])
+
+        # if only one peptide is simulated
+        if peptide_min == peptide_max:
+            peptide_min = 1000000
+            peptide_max = 1000000000
+
         self.intensity = random.randint(peptide_min, peptide_max)
         self.charge = 1
         self.mz = float(msp_entry['PRECURSORMZ'])

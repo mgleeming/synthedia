@@ -208,7 +208,7 @@ class InputReader (object):
 
             if options.decoy_msp_file:
                 logger.info('Reading decoy file')
-                decoys = self.read_decoys_from_msp(options, peptides)
+                decoys = self.read_decoys_from_msp(options, self.peptides)
                 self.peptides = self.peptides + decoys
 
             logger.info('Simulating isotope patterns')
@@ -461,6 +461,8 @@ class InputReader (object):
                 if fragments:
                     mz, intensity = item.split('\t')
                     lipid_dict['fragments'].append([float(mz), float(intensity)])
+
+            if len(lipid_dict['fragments']) == 0: continue
 
             # check if precursor out of bounds
             if (float(lipid_dict['PRECURSORMZ']) < options.ms1_min_mz) or (float(lipid_dict['PRECURSORMZ']) > options.ms1_max_mz):
