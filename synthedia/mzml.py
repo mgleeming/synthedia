@@ -35,7 +35,7 @@ class MZMLWriter():
         self.consumer = PlainMSDataWritingConsumer(out_file)
         self.consumer.setExpectedSize(n_spectra,0)
 
-        self.n_spec_written = 0
+        self.n_spec_written = 1
         return
 
     def write_spec(self, options, spec):
@@ -79,6 +79,9 @@ class MZMLWriter():
         # - some software will crash reading the file without this
         instrument_settings = InstrumentSettings()
         instrument_settings.setPolarity(1)
+
+        # scan index seems to be needed for compatibility with skyline
+        spec_to_write.setNativeID( 'scan=%s' % self.n_spec_written )
 
         scan_window = ScanWindow()
 
