@@ -150,11 +150,11 @@ class Spectrum():
         return
 
     def add_centroid_peaks(self, options, p, groupi, samplei):
-        peptide_scaled_rt = p.scaled_rt
+        peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
         abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
+        intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
 
         # apply chromatographic instability if needed
         if options.esi_instability > 0:
@@ -179,7 +179,7 @@ class Spectrum():
 
                 # update peptide retention boundaries
                 if peaki == 0:
-                    p.update_peptide_retention_times(self.rt)
+                    p.update_peptide_retention_times(self.rt, groupi, samplei)
 
                 # track peak intensities
                 if self.order == 1:
@@ -197,11 +197,11 @@ class Spectrum():
 
     def add_profile_peaks(self, options, p, groupi, samplei):
 
-        peptide_scaled_rt = p.scaled_rt
+        peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
         abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
+        intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
 
         # apply chromatographic instability if needed
         if options.esi_instability > 0:
@@ -253,7 +253,7 @@ class Spectrum():
             # update peptide retention boundaries
             if peaki == 0:
                 if max(peak_ints) > min_peak_intensity:
-                    p.update_peptide_retention_times(self.rt)
+                    p.update_peptide_retention_times(self.rt, groupi, samplei)
 
             # remove low intensity points
             int_mask = np.where(peak_ints < min_peak_intensity)

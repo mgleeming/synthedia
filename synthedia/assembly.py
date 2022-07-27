@@ -36,12 +36,12 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         len(spectra)
     )
 
-    min_rt = min([p.min_scaled_peak_rt for p in peptides])
-    max_rt = max([p.max_scaled_peak_rt for p in peptides])
+    min_rt = min([p.min_scaled_peak_rt_list[groupi][samplei] for p in peptides])
+    max_rt = max([p.max_scaled_peak_rt_list[groupi][samplei] for p in peptides])
 
     return_peptides = []
 
-    peptides.sort(key=lambda p: p.scaled_rt, reverse = True)
+    peptides.sort(key=lambda p: p.scaled_rt_lists[groupi][samplei], reverse = True)
 
     peptide_subset = []
     for spectrumi, spectrum in enumerate(spectra):
@@ -59,20 +59,20 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
         while True:
             if len(peptides) == 0: break
-            if spectrum.rt < peptides[-1].min_scaled_peak_rt: break
-            if spectrum.rt >= peptides[-1].min_scaled_peak_rt:
+            if spectrum.rt < peptides[-1].min_scaled_peak_rt_list[groupi][samplei]: break
+            if spectrum.rt >= peptides[-1].min_scaled_peak_rt_list[groupi][samplei]:
                 peptide_subset.append(peptides.pop())
 
         while True:
             if len(peptide_subset) == 0: break
-            if spectrum.rt <= peptide_subset[0].max_scaled_peak_rt:
+            if spectrum.rt <= peptide_subset[0].max_scaled_peak_rt_list[groupi][samplei]:
                 break
-            if spectrum.rt > peptide_subset[0].max_scaled_peak_rt:
+            if spectrum.rt > peptide_subset[0].max_scaled_peak_rt_list[groupi][samplei]:
                 return_peptides.append(peptide_subset.pop(0))
 
         for p in peptide_subset:
 
-            if spectrum.rt > p.max_scaled_peak_rt:
+            if spectrum.rt > p.max_scaled_peak_rt_list[groupi][samplei]:
                 continue
 
             # skip missing peptides
@@ -111,12 +111,15 @@ def write_peptide_target_table(options, peptides):
         'Charge',
         'Mass',
         'Experimental RT',
-        'Synthetic RT',
-        'Synthetic RT Start',
-        'Synthetic RT End',
         'Synthetic m/z 0',
         'Synthetic max fragment m/z'
     ]
+
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Synthetic RT group_%s_sample_%s' %(group, sample))
+            to_write.append('Synthetic RT start group_%s_sample_%s' %(group, sample))
+            to_write.append('Synthetic RT end group_%s_sample_%s' %(group, sample))
 
      # precursor measured abundances in file
     for group in range(options.n_groups):
@@ -146,6 +149,7 @@ def write_peptide_target_table(options, peptides):
     # precursor found in group
     for group in range(options.n_groups):
         to_write.append('Found in group_%s' %(group))
+
     # precursor found in sample
     for group in range(options.n_groups):
         for sample in range(options.samples_per_group):
@@ -170,12 +174,16 @@ def write_peptide_target_table(options, peptides):
             p.charge,
             p.mass,
             p.rt,
-            p.scaled_rt,
-            '%.3f' %p.get_min_peak_rt(),
-            '%.3f' %p.get_max_peak_rt(),
             p.ms1_isotopes[0].mz,
             p.max_fragment_mz
         ]
+
+        # precursor simulated retention times
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append(p.scaled_rt_lists[group][sample])
+                to_write.append(p.get_min_peak_rt(group, sample))
+                to_write.append(p.get_max_peak_rt(group, sample))
 
         # precursor measured abundances in file
         for group in range(options.n_groups):

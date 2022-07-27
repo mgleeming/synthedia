@@ -57,7 +57,7 @@ def main(args = None):
                         help = 'm/z value at which resolution is defined.')
     instrument_args.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
-    chromatography_args.add_argument( '--esi_instability', required = False, type = float, default = 20,
+    instrument_args.add_argument( '--esi_instability', required = False, type = float, default = 20,
                         help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
 
     chromatography_args = parser.add_argument_group("Chromatography")
@@ -69,6 +69,8 @@ def main(args = None):
                         help = 'Length in minutes of new data file. If set to "0", the retention time range of the input data will be used.')
     chromatography_args.add_argument( '--rt_buffer', required = False, type = float, default = 5,
                         help = 'Time (in minutes) that should be appended to the beginning and end of the retention time range of a set of input peptides. This helps ensure that peptides at the boundaries of the elution window are simulated completely')
+    chromatography_args.add_argument( '--rt_instability', required = False, type = int, default = 15,
+                        help = 'Introduces an instability in retentention time values for the same peptide when a multi-group or multi-sample simulation is conducted. The value is the maximum number of seconds by which peptide retention times will differ')
 
     simulation_args = parser.add_argument_group("Simulation")
     simulation_args.add_argument( '--ms1_min_peak_intensity', required = False, type = float, default = 100,

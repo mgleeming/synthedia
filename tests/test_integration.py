@@ -127,8 +127,8 @@ def get_fragment_peak_area_and_height():
 
 def get_target_peak_retention_boundaries():
     peptide_table = pd.read_csv( os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv') , sep = '\t')
-    start = peptide_table['Synthetic RT Start'].iloc[0]
-    end = peptide_table['Synthetic RT End'].iloc[0]
+    start = peptide_table['Synthetic RT start group_0_sample_0'].iloc[0]
+    end = peptide_table['Synthetic RT end group_0_sample_0'].iloc[0]
     return start/60, end/ 60
 
 def update_param(new_params):
