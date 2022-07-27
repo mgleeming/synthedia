@@ -57,12 +57,12 @@ def main(args = None):
                         help = 'm/z value at which resolution is defined.')
     instrument_args.add_argument( '--n_points_gt_fwhm', required = False, type = int, default = 3,
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
+    chromatography_args.add_argument( '--esi_instability', required = False, type = float, default = 20,
+                        help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
 
     chromatography_args = parser.add_argument_group("Chromatography")
     chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 4,
                         help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
-    chromatography_args.add_argument( '--rt_instability', required = False, type = float, default = 20,
-                        help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
     chromatography_args.add_argument( '--original_run_length', required = False, type = float, default = 0,
                         help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times. If set to "0", the retention time range will be automatically detected from the input data.')
     chromatography_args.add_argument( '--new_run_length', required = False, type = float, default = 0,

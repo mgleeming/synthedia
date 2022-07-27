@@ -157,8 +157,8 @@ class Spectrum():
         intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
 
         # apply chromatographic instability if needed
-        if options.rt_instability > 0:
-            instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
+        if options.esi_instability > 0:
+            instability_factor = 1 - ( random.randint(0,options.esi_instability * 100) / 10000 )
             intensity_scale_factor *= instability_factor
 
         if self.order == 1:
@@ -204,8 +204,8 @@ class Spectrum():
         intensity_scale_factor = p.intensity_scale_factor_dict[self.synthedia_id]
 
         # apply chromatographic instability if needed
-        if options.rt_instability > 0:
-            instability_factor = 1 - ( random.randint(0,options.rt_instability * 100) / 10000 )
+        if options.esi_instability > 0:
+            instability_factor = 1 - ( random.randint(0,options.esi_instability * 100) / 10000 )
             intensity_scale_factor *= instability_factor
 
         if self.order == 1:

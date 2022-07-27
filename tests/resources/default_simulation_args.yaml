@@ -41,7 +41,7 @@ rescale_rt: false
 resolution_at: 200
 rt_buffer: 5
 rt_emg_k: 2
-rt_instability: 20
+esi_instability: 20
 rt_peak_fwhm: 7
 rt_peak_model: exponentially_modified_gaussian
 samples_per_group: 1
