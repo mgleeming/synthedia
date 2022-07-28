@@ -11,7 +11,7 @@ Synthedia can be configured to produce synthetic DIA data that mimics a wide ran
 
 ## Getting started
 
-Synthedia can be used by downloading and installing the package or through our web server which can be accessed [here](http://45.113.234.202:8502/). Please note that producing synthetic data is a time-consuming task and capacity on our server is limited. In most cases, it will be faster to install synthedia on your own computer as this can take advantage of multiple processing cores.
+Synthedia can be used by downloading and installing the package or through our web server which can be accessed [here](https://synthedia.org/). Please note that producing synthetic data is a time-consuming task and capacity on our server is limited. In most cases, it will be faster to install synthedia on your own computer as this can take advantage of multiple processing cores.
 
 ## Installation
 
@@ -168,7 +168,6 @@ synthedia --config /path/to/params.yaml  --ms1_resolution 100000
 In this case the ```ms1_resolution``` parameter value given on the command line is used even if a different value is given in ```/path/to/params.yaml```. That is, the heirarchy is command line parameter > config.yaml > synthedia default.
 
 ## Synthedia parameter reference
-
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
                      [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
                      [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
@@ -185,10 +184,11 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--isolation_window ISOLATION_WINDOW]
                      [--resolution_at RESOLUTION_AT]
                      [--n_points_gt_fwhm N_POINTS_GT_FWHM]
+                     [--esi_instability ESI_INSTABILITY]
                      [--rt_peak_fwhm RT_PEAK_FWHM]
-                     [--rt_instability RT_INSTABILITY]
                      [--original_run_length ORIGINAL_RUN_LENGTH]
                      [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
+                     [--rt_instability RT_INSTABILITY]
                      [--ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY]
                      [--ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY]
                      [--centroid_ms1] [--centroid_ms2] [--write_empty_spectra]
@@ -264,16 +264,16 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Increasing this number means each mass spectral peak
                             will be described by more data points but will also
                             slow processing time and increase file size.
+      --esi_instability ESI_INSTABILITY
+                            Simulates imperfection in chromatographic peaks by
+                            applying a randomly intensity scaling factor to
+                            adjacent scans. A value of 0 indicates no randomness.
+                            A value of 100 indicates high spray instability.
 
     Chromatography:
       --rt_peak_fwhm RT_PEAK_FWHM
                             Chromatographic peak full with at half maximum
                             intehsity in seconds.
-      --rt_instability RT_INSTABILITY
-                            Simulates imperfection in chromatographic peaks by
-                            applying a randomly intensity scaling factor to
-                            adjacent scans. A value of 0 indicates no randomness.
-                            A value of 100 indicates high spray instability.
       --original_run_length ORIGINAL_RUN_LENGTH
                             Length in minutes of original data file. If not given,
                             this will be determined by taking the difference
@@ -289,6 +289,12 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             of input peptides. This helps ensure that peptides at
                             the boundaries of the elution window are simulated
                             completely
+      --rt_instability RT_INSTABILITY
+                            Introduces an instability in retentention time values
+                            for the same peptide when a multi-group or multi-
+                            sample simulation is conducted. The value is the
+                            maximum number of seconds by which peptide retention
+                            times will differ
 
     Simulation:
       --ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY
@@ -371,7 +377,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Number of decoy peaks to simulate
       --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
                             Simulate n most intense fragments of the decoy
-                            compound
+                            compound.
 
 ## Viewing mzML files
 
