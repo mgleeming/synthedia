@@ -207,9 +207,10 @@ class InputReader (object):
                 self.peptides = self.read_peptides_from_prosit(options)
 
             if options.decoy_msp_file:
-                logger.info('Reading decoy file')
-                decoys = self.read_decoys_from_msp(options, self.peptides)
-                self.peptides = self.peptides + decoys
+                if options.num_decoys > 0:
+                    logger.info('Reading decoy file')
+                    decoys = self.read_decoys_from_msp(options, self.peptides)
+                    self.peptides = self.peptides + decoys
 
             logger.info('Simulating isotope patterns')
             if options.num_processors == 1:
@@ -460,9 +461,21 @@ class InputReader (object):
 
                 if fragments:
                     mz, intensity = item.split('\t')
+
+                    if float(mz) < options.ms2_min_mz: continue
+                    if float(mz) > options.ms2_max_mz: continue
+
                     lipid_dict['fragments'].append([float(mz), float(intensity)])
 
+            # check for missing fields that are required later
             if len(lipid_dict['fragments']) == 0: continue
+            if 'RETENTIONTIME' not in lipid_dict.keys(): continue
+            if 'NAME' not in lipid_dict.keys(): continue
+            if 'PRECURSORMZ' not in lipid_dict.keys(): continue
+            if 'FORMULA' not in lipid_dict.keys(): continue
+
+            # some formulae have charges etc - skip these
+            if not lipid_dict['FORMULA'].isalnum(): continue
 
             # check if precursor out of bounds
             if (float(lipid_dict['PRECURSORMZ']) < options.ms1_min_mz) or (float(lipid_dict['PRECURSORMZ']) > options.ms1_max_mz):
