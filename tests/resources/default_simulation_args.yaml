@@ -56,3 +56,5 @@ ms1_ppm_error_mean: 0
 ms1_ppm_error_stdev: 0
 ms2_ppm_error_mean: 0
 ms2_ppm_error_stdev: 0
+decoy_abundance_mean: 22
+decoy_abundance_stdev: 3

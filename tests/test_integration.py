@@ -360,3 +360,8 @@ def test_max_fragment_intensity():
     area, height = get_fragment_peak_area_and_height()
     assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
     assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
+
+def test_decoy_msp():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'decoy_msp_file': os.path.join(TEST_RESOURCES, 'decoy.msp')})
+    assembly.assemble(options)

@@ -135,6 +135,11 @@ def main(args = None):
                         help = 'Number of decoy peaks to simulate')
     decoy_args.add_argument( '--simulate_top_n_decoy_fragments', required = False, type = int, default = 15,
                         help = 'Simulate n most intense fragments of the decoy compound.')
+    decoy_args.add_argument( '--decoy_abundance_mean', required = False, type = float, default = 22,
+                        help = 'Mean log2 abundance used to simulate decoy ion abundances.')
+    decoy_args.add_argument( '--decoy_abundance_stdev', required = False, type = float, default = 3,
+                        help = 'Standard deviation of gaussian used to simulate decoy ion abundances.')
+
 
     options =  parser.parse_args()
 

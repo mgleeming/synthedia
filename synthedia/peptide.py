@@ -251,12 +251,11 @@ class SyntheticPeptide():
 
         self.rt = float(msp_entry['RETENTIONTIME'])
 
-        # if only one peptide is simulated
-        if peptide_min == peptide_max:
-            peptide_min = 1000000
-            peptide_max = 1000000000
+        self.intensity = 2 ** np.random.normal(
+            loc = options.decoy_abundance_mean,
+            scale = options.decoy_abundance_stdev
+        )
 
-        self.intensity = random.randint(peptide_min, peptide_max)
         self.charge = 1
         self.mz = float(msp_entry['PRECURSORMZ'])
         self.protein = 'DECOY'
