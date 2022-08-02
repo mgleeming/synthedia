@@ -184,7 +184,6 @@ synthedia --config /path/to/params.yaml  --ms1_resolution 100000
 In this case the ```ms1_resolution``` parameter value given on the command line is used even if a different value is given in ```/path/to/params.yaml```. That is, the heirarchy is command line parameter > config.yaml > synthedia default.
 
 ## Synthedia parameter reference
-
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
                      [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
                      [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
@@ -226,6 +225,8 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--within_group_stdev WITHIN_GROUP_STDEV]
                      [--decoy_msp_file DECOY_MSP_FILE] [--num_decoys NUM_DECOYS]
                      [--simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS]
+                     [--decoy_abundance_mean DECOY_ABUNDANCE_MEAN]
+                     [--decoy_abundance_stdev DECOY_ABUNDANCE_STDEV]
 
     Generate synthetic DIA LC-MS/MS bottom up proteomics data with known
     composition.
@@ -424,6 +425,12 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
                             Simulate n most intense fragments of the decoy
                             compound.
+      --decoy_abundance_mean DECOY_ABUNDANCE_MEAN
+                            Mean log2 abundance used to simulate decoy ion
+                            abundances.
+      --decoy_abundance_stdev DECOY_ABUNDANCE_STDEV
+                            Standard deviation of gaussian used to simulate decoy
+                            ion abundances.
 
 ## Viewing mzML files
 
