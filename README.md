@@ -50,6 +50,11 @@ virtualenv venv --python=/path/to/python3.X
 ```
 On linux systems, the path is usually ```/usr/bin/pythonX.X```
 
+Install dependencies:
+```
+pip install -r requirements.txt
+```
+
 Install synthedia:
 ```
 pip install .
