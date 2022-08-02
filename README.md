@@ -168,6 +168,7 @@ synthedia --config /path/to/params.yaml  --ms1_resolution 100000
 In this case the ```ms1_resolution``` parameter value given on the command line is used even if a different value is given in ```/path/to/params.yaml```. That is, the heirarchy is command line parameter > config.yaml > synthedia default.
 
 ## Synthedia parameter reference
+
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
                      [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
                      [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
@@ -175,9 +176,11 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
                      [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
                      [--config CONFIG] [--silent]
-                     [--num_processors NUM_PROCESSORS] [--ms1_min_mz MS1_MIN_MZ]
-                     [--ms1_max_mz MS1_MAX_MZ] [--ms2_min_mz MS2_MIN_MZ]
-                     [--ms2_max_mz MS2_MAX_MZ] [--ms1_resolution MS1_RESOLUTION]
+                     [--mq_pep_threshold MQ_PEP_THRESHOLD]
+                     [--filterTerm FILTERTERM] [--num_processors NUM_PROCESSORS]
+                     [--ms1_min_mz MS1_MIN_MZ] [--ms1_max_mz MS1_MAX_MZ]
+                     [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
+                     [--ms1_resolution MS1_RESOLUTION]
                      [--ms2_resolution MS2_RESOLUTION]
                      [--ms1_scan_duration MS1_SCAN_DURATION]
                      [--ms2_scan_duration MS2_SCAN_DURATION]
@@ -185,6 +188,10 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--resolution_at RESOLUTION_AT]
                      [--n_points_gt_fwhm N_POINTS_GT_FWHM]
                      [--esi_instability ESI_INSTABILITY]
+                     [--ms1_ppm_error_mean MS1_PPM_ERROR_MEAN]
+                     [--ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV]
+                     [--ms2_ppm_error_mean MS2_PPM_ERROR_MEAN]
+                     [--ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV]
                      [--rt_peak_fwhm RT_PEAK_FWHM]
                      [--original_run_length ORIGINAL_RUN_LENGTH]
                      [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
@@ -196,10 +203,9 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--rt_peak_model RT_PEAK_MODEL] [--mz_emg_k MZ_EMG_K]
                      [--rt_emg_k RT_EMG_K]
                      [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
-                     [--prob_missing_in_group PROB_MISSING_IN_GROUP]
-                     [--mq_pep_threshold MQ_PEP_THRESHOLD]
-                     [--filterTerm FILTERTERM] [--tic] [--schema] [--all]
-                     [--n_groups N_GROUPS] [--samples_per_group SAMPLES_PER_GROUP]
+                     [--prob_missing_in_group PROB_MISSING_IN_GROUP] [--tic]
+                     [--schema] [--all] [--n_groups N_GROUPS]
+                     [--samples_per_group SAMPLES_PER_GROUP]
                      [--between_group_stdev BETWEEN_GROUP_STDEV]
                      [--within_group_stdev WITHIN_GROUP_STDEV]
                      [--decoy_msp_file DECOY_MSP_FILE] [--num_decoys NUM_DECOYS]
@@ -232,6 +238,19 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Prefix for output files.
       --config CONFIG       Path to *.yaml config file.
       --silent              Do not print logging output to terminal
+
+    Filtering:
+      --mq_pep_threshold MQ_PEP_THRESHOLD
+                            For MaxQuant input data, use only peptides with a
+                            Posterior Error Probability (PEP) less than this value
+      --filterTerm FILTERTERM
+                            Terms used to filter input maxquant lists to remove
+                            unwanted targets. For example contaminant protein can
+                            be removed by specifying "--filterTerm CON_". Multiple
+                            filters can be applied. For example "--filterTerm CON_
+                            --filterTerm REV_". Filters are used only for MaxQuant
+                            input types (no effect for Prosit) and are applied to
+                            the "Proteins" column of the evidence.txt table.
 
     Processing:
       --num_processors NUM_PROCESSORS
@@ -269,6 +288,30 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             applying a randomly intensity scaling factor to
                             adjacent scans. A value of 0 indicates no randomness.
                             A value of 100 indicates high spray instability.
+      --ms1_ppm_error_mean MS1_PPM_ERROR_MEAN
+                            The mean value of a Gaussian distribution from which
+                            PPM errors for MS1 precursors will be drawn. This
+                            value can be negative. Setting both
+                            ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0
+                            equates to perfect mass accuracy.
+      --ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV
+                            The standard deviation of a Gaussian distribution from
+                            which PPM errors for MS1 precursors will be drawn.
+                            Setting both ms1_ppm_error_mean and
+                            ms1_ppm_error_stdev to 0 equates to perfect mass
+                            accuracy.
+      --ms2_ppm_error_mean MS2_PPM_ERROR_MEAN
+                            The mean value of a Gaussian distribution from which
+                            PPM errors for MS2 fragments will be drawn. This value
+                            can be negative. Setting both ms1_ppm_error_mean, and
+                            ms1_ppm_error_stdev to 0 equates to perfect mass
+                            accuracy.
+      --ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV
+                            The standard deviation of a Gaussian distribution from
+                            which PPM errors for MS2 fragments will be drawn.
+                            Setting both ms1_ppm_error_mean and
+                            ms1_ppm_error_stdev to 0 equates to perfect mass
+                            accuracy.
 
     Chromatography:
       --rt_peak_fwhm RT_PEAK_FWHM
@@ -339,19 +382,6 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --prob_missing_in_group PROB_MISSING_IN_GROUP
                             Probability (0-100) that a peptide is missing in an
                             entire group
-
-    Filtering:
-      --mq_pep_threshold MQ_PEP_THRESHOLD
-                            For MaxQuant input data, use only peptides with a
-                            Posterior Error Probability (PEP) less than this value
-      --filterTerm FILTERTERM
-                            Terms used to filter input maxquant lists to remove
-                            unwanted targets. For example contaminant protein can
-                            be removed by specifying "--filterTerm CON_". Multiple
-                            filters can be applied. For example "--filterTerm CON_
-                            --filterTerm REV_". Filters are used only for MaxQuant
-                            input types (no effect for Prosit) and are applied to
-                            the "Proteins" column of the evidence.txt table.
 
     Plotting:
       --tic                 Plot TIC for the generated mzML file.
