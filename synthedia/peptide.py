@@ -5,13 +5,45 @@ from pyteomics import mass, fasta
 # constants
 PROTON = 1.007276
 IAA = 57.02092
+ONE_MILLION = 1000000
 
 class Peak():
-    def __init__(self, options, mz, intensity):
-        self.mz = mz
+    def __init__(self, options, mz, intensity, ms_level = 1):
+        self.ms_level = ms_level
+        self.base_mz = mz
         self.intensity = intensity
         self.make_peak_intensity_lists(options)
+        self.make_mz_lists(options)
+        self.make_profile_intensity_lists(options)
+        return
 
+    def make_profile_intensity_lists(self, options):
+        self.profile_intensity_list = []
+        for groupi in range(options.n_groups):
+            self.profile_intensity_list.append([])
+        return
+
+    def make_mz_lists(self, options):
+        self.peak_mz_list = []
+        self.peak_mz_error_list = []
+        for groupi in range(options.n_groups):
+            self.peak_mz_list.append([])
+            self.peak_mz_error_list.append([])
+            for samplei in range(options.samples_per_group):
+                if self.ms_level == 1:
+                    error = np.random.normal(
+                        loc = options.ms1_ppm_error_mean,
+                        scale = options.ms1_ppm_error_stdev
+                    )
+                else:
+                    error = np.random.normal(
+                        loc = options.ms2_ppm_error_mean,
+                        scale = options.ms2_ppm_error_stdev
+                    )
+                offset = error * self.base_mz / ONE_MILLION
+                mzi = self.base_mz + offset
+                self.peak_mz_list[-1].append(mzi)
+                self.peak_mz_error_list[-1].append(error)
         return
 
     def make_peak_intensity_lists(self, options):
@@ -57,29 +89,30 @@ class Peak():
     def get_max_fragment_intensity_to_report(self, groupi, samplei):
         return max(self.max_fragment_intensity[groupi][samplei])
 
-    def get_limits(self, options, mzs):
+    def get_limits(self, options, mzs, groupi, samplei):
         try:
             return self.lower_limit, self.higher_limit, self.indicies
         except AttributeError:
             mz_mask = np.where(
-                (mzs > self.mz - options.ms_clip_window)
+                (mzs > self.peak_mz_list[groupi][samplei] - options.ms_clip_window)
                 &
-                (mzs < self.mz + options.ms_clip_window)
+                (mzs < self.peak_mz_list[groupi][samplei] + options.ms_clip_window)
             )
             try:
                 self.lower_limit = mz_mask[0].min()
                 self.higher_limit = mz_mask[0].max()
             except:
+                print('error getting limits - exiting')
                 sys.exit()
             self.indicies = mz_mask[0]
             return self.lower_limit, self.higher_limit, self.indicies
 
-    def set_peak_intensities(self, options, peak_intensities):
-        self.peak_intensities = peak_intensities
+    def set_peak_intensities(self, options, peak_intensities, groupi, samplei):
+        self.profile_intensity_list[groupi].append(peak_intensities)
         return
 
-    def get_peak_intensities(self):
-        return copy.deepcopy(self.peak_intensities)
+    def get_peak_intensities(self, groupi, samplei):
+        return copy.deepcopy(self.profile_intensity_list[groupi][samplei])
 
 class SyntheticPeptide():
     def __init__(self,
@@ -200,11 +233,11 @@ class SyntheticPeptide():
 
     def configure_ms2_peaks(self, options):
         self.ms2_peaks = [
-            Peak(options, p[0], p[1]) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
+            Peak(options, p[0], p[1], ms_level = 2) for p in self.ms2_peaks if all([p[0] > options.ms2_min_mz, p[0] < options.ms2_max_mz])
         ]
 
         self.max_fragment_index = np.argmax([_.intensity for _ in self.ms2_peaks])
-        self.max_fragment_mz = self.ms2_peaks[self.max_fragment_index].mz
+        self.max_fragment_mz = self.ms2_peaks[self.max_fragment_index].base_mz
         return
 
     def populate_from_msp(self, options, msp_entry, peptide_min, peptide_max):
@@ -450,7 +483,7 @@ def calculate_feature_windows(options, peptides, spectra):
     max_stdev = max([options.ms1_stdev, options.ms2_stdev])
 
     peak_ints = options.mz_peak_model(mzs, **{
-        'mu': max_int_peak.mz, 'sig': max_stdev, 'emg_k': options.mz_emg_k
+        'mu': max_int_peak.base_mz, 'sig': max_stdev, 'emg_k': options.mz_emg_k
     })
 
     mask = np.where(peak_ints > min_intensity)

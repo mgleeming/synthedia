@@ -174,7 +174,7 @@ class Spectrum():
             adjusetd_raw_int = 2 ** adjusted_log2_int
             peak_int = adjusetd_raw_int * intensity_scale_factor
             if peak_int > min_peak_intensity:
-                self.mzs.append(peak.mz)
+                self.mzs.append(peak.peak_mz_list[groupi][samplei])
                 self.ints.append(peak_int)
 
                 # update peptide retention boundaries
@@ -219,7 +219,7 @@ class Spectrum():
 
         for peaki, peak in enumerate(peaks):
 
-            lower_limit, higher_limit, indicies = peak.get_limits(options, self.mzs)
+            lower_limit, higher_limit, indicies = peak.get_limits(options, self.mzs, groupi, samplei)
             self.indicies.extend(indicies)
 
             # apply offset to peak intensity
@@ -232,12 +232,12 @@ class Spectrum():
                 # calculating the peak for the full m/z range is slow
                 # subset data to only a small region around the peak to speed calculation
                 peak_ints = options.mz_peak_model(self.mzs[lower_limit:higher_limit], **{
-                    'mu': peak.mz, 'sig': stdev, 'emg_k': options.mz_emg_k
+                    'mu': peak.peak_mz_list[groupi][samplei], 'sig': stdev, 'emg_k': options.mz_emg_k
                 })
 
-                peak.set_peak_intensities(options, peak_ints)
+                peak.set_peak_intensities(options, peak_ints, groupi, samplei)
 
-            peak_ints = peak.get_peak_intensities()
+            peak_ints = peak.get_peak_intensities( groupi, samplei )
 
             # scale peak intensities by chromatogram scaling factor
             factor = adjusetd_raw_int * intensity_scale_factor

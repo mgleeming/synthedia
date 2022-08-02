@@ -111,7 +111,7 @@ def write_peptide_target_table(options, peptides):
         'Charge',
         'Mass',
         'Experimental RT',
-        'Synthetic m/z 0',
+        'Synthetic theoretical m/z 0',
         'Synthetic max fragment m/z'
     ]
 
@@ -120,6 +120,14 @@ def write_peptide_target_table(options, peptides):
             to_write.append('Synthetic RT group_%s_sample_%s' %(group, sample))
             to_write.append('Synthetic RT start group_%s_sample_%s' %(group, sample))
             to_write.append('Synthetic RT end group_%s_sample_%s' %(group, sample))
+
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Synthetic m/z group_%s_sample_%s' %(group, sample))
+
+    for group in range(options.n_groups):
+        for sample in range(options.samples_per_group):
+            to_write.append('Synthetic m/z ppm error group_%s_sample_%s' %(group, sample))
 
      # precursor measured abundances in file
     for group in range(options.n_groups):
@@ -174,16 +182,26 @@ def write_peptide_target_table(options, peptides):
             p.charge,
             p.mass,
             p.rt,
-            p.ms1_isotopes[0].mz,
-            p.max_fragment_mz
+            '%.5f' %p.ms1_isotopes[0].base_mz, # exact mz i.e. no error
+            '%.5f' %p.max_fragment_mz
         ]
 
         # precursor simulated retention times
         for group in range(options.n_groups):
             for sample in range(options.samples_per_group):
-                to_write.append(p.scaled_rt_lists[group][sample])
-                to_write.append(p.get_min_peak_rt(group, sample))
-                to_write.append(p.get_max_peak_rt(group, sample))
+                to_write.append('%.2f'%p.scaled_rt_lists[group][sample])
+                to_write.append('%.2f'%p.get_min_peak_rt(group, sample))
+                to_write.append('%.2f'%p.get_max_peak_rt(group, sample))
+
+        # true m/z values written to mzml
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append('%.5f'%p.ms1_isotopes[0].peak_mz_list[group][sample])
+
+        # true m/z values written to mzml
+        for group in range(options.n_groups):
+            for sample in range(options.samples_per_group):
+                to_write.append('%.3f'%p.ms1_isotopes[0].peak_mz_error_list[group][sample])
 
         # precursor measured abundances in file
         for group in range(options.n_groups):

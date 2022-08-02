@@ -30,6 +30,12 @@ def main(args = None):
     io_args.add_argument( '--silent', action= 'store_true',
                         help = 'Do not print logging output to terminal')
 
+    filtering_args = parser.add_argument_group("Filtering")
+    filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
+                        help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
+    filtering_args.add_argument('--filterTerm', required = False, type = str, action = 'append', default = ['CON_', 'REV'],
+                        help = 'Terms used to filter input maxquant lists to remove unwanted targets. For example contaminant protein can be removed by specifying "--filterTerm CON_". Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm REV_". Filters are used only for MaxQuant input types (no effect for Prosit) and are applied to the "Proteins" column of the evidence.txt table.')
+
     processing_args = parser.add_argument_group("Processing")
     processing_args.add_argument( '--num_processors', required = False, type = int, default = multiprocessing.cpu_count() ,
                         help = 'Number of cores to use in constructing mzML files. Defaults to all available cores')
@@ -59,6 +65,14 @@ def main(args = None):
                         help = 'Number of MS data points greater than the peak FWHM. Increasing this number means each mass spectral peak will be described by more data points but will also slow processing time and increase file size.')
     instrument_args.add_argument( '--esi_instability', required = False, type = float, default = 20,
                         help = 'Simulates imperfection in chromatographic peaks by applying a randomly intensity scaling factor to adjacent scans. A value of 0 indicates no randomness. A value of 100 indicates high spray instability.')
+    instrument_args.add_argument( '--ms1_ppm_error_mean', required = False, type = float, default = 0,
+                        help = 'The mean value of a Gaussian distribution from which PPM errors for MS1 precursors will be drawn. This value can be negative. Setting both ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.')
+    instrument_args.add_argument( '--ms1_ppm_error_stdev', required = False, type = float, default = 0,
+                        help = 'The standard deviation of a Gaussian distribution from which PPM errors for MS1 precursors will be drawn. Setting both ms1_ppm_error_mean and ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.')
+    instrument_args.add_argument( '--ms2_ppm_error_mean', required = False, type = float, default = 0,
+                        help = 'The mean value of a Gaussian distribution from which PPM errors for MS2 fragments will be drawn. This value can be negative. Setting both ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.')
+    instrument_args.add_argument( '--ms2_ppm_error_stdev', required = False, type = float, default = 0,
+                        help = 'The standard deviation of a Gaussian distribution from which PPM errors for MS2 fragments will be drawn. Setting both ms1_ppm_error_mean and ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.')
 
     chromatography_args = parser.add_argument_group("Chromatography")
     chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 4,
@@ -95,12 +109,6 @@ def main(args = None):
                         help = 'Probability (0-100) that a peptide is missing in any given sample')
     simulation_args.add_argument( '--prob_missing_in_group', required = False, type = float, default = 0,
                         help = 'Probability (0-100) that a peptide is missing in an entire group')
-
-    filtering_args = parser.add_argument_group("Filtering")
-    filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
-                        help = 'For MaxQuant input data, use only peptides with a Posterior Error Probability (PEP) less than this value')
-    filtering_args.add_argument('--filterTerm', required = False, type = str, action = 'append', default = ['CON_', 'REV'],
-                        help = 'Terms used to filter input maxquant lists to remove unwanted targets. For example contaminant protein can be removed by specifying "--filterTerm CON_". Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm REV_". Filters are used only for MaxQuant input types (no effect for Prosit) and are applied to the "Proteins" column of the evidence.txt table.')
 
     plotting_args = parser.add_argument_group("Plotting")
     plotting_args.add_argument( '--tic', action = 'store_true',

@@ -52,3 +52,7 @@ tic: false
 use_existing_peptide_file: null
 within_group_stdev: 0.2
 write_empty_spectra: false
+ms1_ppm_error_mean: 0
+ms1_ppm_error_stdev: 0
+ms2_ppm_error_mean: 0
+ms2_ppm_error_stdev: 0
