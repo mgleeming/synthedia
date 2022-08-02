@@ -3,6 +3,21 @@
 [![Synthedia Integration](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml/badge.svg?branch=main)](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
+# Table of contents
+**[1. Introduction](#introduction)**<br>
+**[2. Getting started](#getting-started)**<br>
+**[3. Installation](#installation)**<br>
+**[4. Input data types](#input-data-types)**<br>
+**[5. DIA acquisition strategies](#dia-acquisition-strategies)**<br>
+**[6. Decoy signals](#decoy-signals)**<br>
+**[7. Compatibility of Synthedia mzML files with other softeare](#compatibility-of-synthedia-mzml-files-with-other-softeare)**<br>
+**[8. Notes about the resulting data](#notes-about-the-resulting-data)**<br>
+**[9. Usage](#usage)**<br>
+**[10. Synthedia parameter reference](#synthedia-parameter-reference)**<br>
+**[11. Viewing mzML files](#viewing-mzml-files)**<br>
+**[12. Support](#support)**<br>
+
+## Introduction
 A wide range of software is available to identify and quantify peptides in bottom-up proteomics data acquired by LC-MS/MS and, frequently, analysis of the same input data file with two different packages yields different results. These differences likely originate from differences in algorithms for preprocessing data, matching MSn spectra to peptides, quantifying peak areas, matching assignments between samples as well as differences in the myriad parameters that must be set by the user to initiate an analysis. Thorough analysis of these variables is, however, complicated since the ‘true’ sample composition of real data files is almost never completely known.
 
 Synthedia creates synthetic LC-MS/MS data that mimics real data but with a composition that is exactly known. Currently, synthedia support the creation of Data-Independent Acquisition (DIA) style data wherein fixed, large m/z windows are sequentially isolated for fragmentation. We have focused on creating DIA data to date since the complexity of the analysis preformed by processing tools is substantial and the impact of different acquisition methodologies on the eventual outcome is somewhat more difficult to predict.
@@ -93,10 +108,11 @@ The number of decoy peaks to simulate, as well as the maximum number of fragment
 The mzML files generated with Synthedia have been tested with:
 
 - DIA-NN
-- DIAUmppire
 - EncyclopeDIA
-- MSConvert
+- DIAUmppire
+- Skyline
 - OpenMS/ToppView
+- MSConvert
 
 The mzML files are known to not be compatible with MaxQuant (at least as at MaxQuant Version 2.0.3.0)
 
