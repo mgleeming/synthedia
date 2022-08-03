@@ -375,6 +375,12 @@ def assemble(options):
     for k,v in options.__dict__.items():
         logger.info('\t%s: %s' %(k,v))
 
+    if not any([options.mq_txt_dir, options.prosit, options.use_existing_peptide_file]):
+        msg = 'Either an MaxQuant output directory, Prosit library, or peptide file from a previous simulation is required'
+        logger.error(msg)
+        logger.error('Exiting')
+        raise IncorrectInputError(msg)
+
     logger.info('Calculating peak parameters')
     options = get_extra_parameters(options)
 

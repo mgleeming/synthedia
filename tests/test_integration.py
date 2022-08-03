@@ -20,7 +20,11 @@ def create_test_dir():
     except:
         pass
 
-PARAM_TEMPLATE = yaml.load(open(os.path.join(TEST_RESOURCES, 'default_simulation_args.yaml')), Loader=yaml.FullLoader)
+try:
+    PARAM_TEMPLATE = yaml.load(open(os.path.join(TEST_RESOURCES, 'default_simulation_args.yaml')), Loader=yaml.FullLoader)
+except AttributeError:
+    PARAM_TEMPLATE = yaml.load(open(os.path.join(TEST_RESOURCES, 'default_simulation_args.yaml')))
+
 PARAM_TEMPLATE['out_dir'] = TEST_OUTPUTS
 
 class Options():

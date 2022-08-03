@@ -165,11 +165,6 @@ class InputReader (object):
     def __init__(self, options):
         logger = logging.getLogger("assembly_logger")
 
-        if not any([options.mq_txt_dir, options.prosit, options.use_existing_peptide_file]):
-            msg = 'Either an MaxQuant output directory, Prosit library, or peptide file from a previous simulation is required'
-            logger.error(msg)
-            logger.error('Exiting')
-            raise IncorrectInputError(msg)
 
         self.peptides = []
 
