@@ -2,9 +2,9 @@
 
 [![Synthedia Integration](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml/badge.svg?branch=main)](https://github.com/mgleeming/synthedia/actions/workflows/integration.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-![Python](https://img.shields.io/badge/python-3.7-red.svg)
+![Python](https://img.shields.io/badge/python-3.7-yellow.svg)
 ![Python](https://img.shields.io/badge/python-3.8-yellow.svg)
-![Python](https://img.shields.io/badge/python-3.9-purple.svg)
+![Python](https://img.shields.io/badge/python-3.9-yellow.svg)
 
 # Table of contents
 **[1. Introduction](#introduction)**<br>
