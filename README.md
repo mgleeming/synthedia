@@ -33,6 +33,28 @@ Synthedia can be used by downloading and installing the package or through our w
 
 ## Installation
 
+### Install via pip
+
+Create a virtual environment (optional):
+```
+virtualenv venv
+source venv/bin/activate
+pip install --upgrade pip
+```
+
+Note that the [pyOpenMS](https://pyopenms.readthedocs.io/en/latest/index.html) dependency of synthedia requires python 3.7, 3.8 or 3.9. If you have multiple python versions installed, you can construct virtual environments with different versions by:
+```
+virtualenv venv --python=/path/to/python3.X
+```
+On linux systems, the path is usually ```/usr/bin/pythonX.X```
+
+Install synthedia using ```pip```
+```
+pip install synthedia
+```
+
+
+### Install from source
 Clone the repo:
 ```
 git clone https://github.com/mgleeming/synthedia.git
@@ -42,6 +64,7 @@ Create a virtual environment (optional):
 ```
 virtualenv venv
 source venv/bin/activate
+pip install --upgrade pip
 ```
 
 Note that the [pyOpenMS](https://pyopenms.readthedocs.io/en/latest/index.html) dependency of synthedia requires python 3.7, 3.8 or 3.9. If you have multiple python versions installed, you can construct virtual environments with different versions by:
