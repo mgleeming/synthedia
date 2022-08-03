@@ -172,10 +172,6 @@ def main(args = None):
 
         options = Options(options)
 
-    # save init args
-    with open(os.path.join(options.out_dir, '%s_simulation_args.yaml'%options.output_label), 'w') as f:
-        yaml.dump(options.__dict__, f)
-
     assembly.assemble(options)
 
 class Options():

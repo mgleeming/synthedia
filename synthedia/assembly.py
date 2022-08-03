@@ -1,4 +1,4 @@
-import os, sys, time, copy, pickle
+import os, sys, time, copy, pickle, yaml
 import random, math, datetime, logging
 import pandas as pd
 import numpy as np
@@ -361,6 +361,10 @@ def assemble(options):
         os.makedirs(options.out_dir)
     except:
         pass
+
+    # save init args
+    with open(os.path.join(options.out_dir, '%s_simulation_args.yaml'%options.output_label), 'w') as f:
+        yaml.dump(options.__dict__, f)
 
     logger = configure_logging(options)
 
