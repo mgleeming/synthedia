@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name = "synthedia",
-    version = "0.0.1",
+    version = "1.0.0",
     description = "Generate synthetic DIA LC-MS/MS proteomics data",
     long_description = README,
     long_description_content_type = "text/markdown",
@@ -20,8 +20,9 @@ setup(
     license = "BSD",
     classifiers = [
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     packages = ["synthedia"],
     entry_points={
