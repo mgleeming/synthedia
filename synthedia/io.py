@@ -244,7 +244,7 @@ class InputReader (object):
         return self.peptides
 
     def write_pickle(self, options):
-        with open( os.path.join(options.out_dir, 'peptides.pickle') , 'wb') as handle:
+        with open( os.path.join(options.out_dir, '%s_peptides.pickle' %options.output_label) , 'wb') as handle:
             pickle.dump(self.peptides, handle, protocol=pickle.HIGHEST_PROTOCOL)
         return
 

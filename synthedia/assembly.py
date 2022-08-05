@@ -349,7 +349,7 @@ def configure_logging(options):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-    fh = logging.FileHandler(os.path.join(options.out_dir, 'assembly.log'))
+    fh = logging.FileHandler(os.path.join(options.out_dir, '%s_assembly.log' %options.output_label))
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
