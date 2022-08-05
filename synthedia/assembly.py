@@ -366,6 +366,12 @@ def assemble(options):
     with open(os.path.join(options.out_dir, '%s_simulation_args.yaml'%options.output_label), 'w') as f:
         yaml.dump(options.__dict__, f)
 
+    try:
+        if options.write_params:
+            sys.exit()
+    except AttributeError:
+        pass
+
     logger = configure_logging(options)
 
     start = datetime.datetime.now()

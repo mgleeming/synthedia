@@ -29,6 +29,8 @@ def main(args = None):
                         help = 'Path to *.yaml config file.')
     io_args.add_argument( '--silent', action= 'store_true',
                         help = 'Do not print logging output to terminal')
+    io_args.add_argument( '--write_params', action = 'store_true',
+                        help = 'Write parameters to yaml file and exit.')
 
     filtering_args = parser.add_argument_group("Filtering")
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
