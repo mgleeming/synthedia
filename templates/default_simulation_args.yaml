@@ -49,3 +49,4 @@ tic: false
 use_existing_peptide_file: null
 within_group_stdev: 0.2
 write_empty_spectra: false
+write_params: false
