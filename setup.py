@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name = "synthedia",
-    version = "1.0.0",
+    version = "1.0.1",
     description = "Generate synthetic DIA LC-MS/MS proteomics data",
     long_description = README,
     long_description_content_type = "text/markdown",
