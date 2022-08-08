@@ -216,7 +216,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                      [--acquisition_schema ACQUISITION_SCHEMA]
                      [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
                      [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
-                     [--config CONFIG] [--silent]
+                     [--config CONFIG] [--silent] [--write_params]
                      [--mq_pep_threshold MQ_PEP_THRESHOLD]
                      [--filterTerm FILTERTERM] [--num_processors NUM_PROCESSORS]
                      [--ms1_min_mz MS1_MIN_MZ] [--ms1_max_mz MS1_MAX_MZ]
@@ -281,6 +281,7 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
                             Prefix for output files.
       --config CONFIG       Path to *.yaml config file.
       --silent              Do not print logging output to terminal
+      --write_params        Write parameters to yaml file and exit.
 
     Filtering:
       --mq_pep_threshold MQ_PEP_THRESHOLD

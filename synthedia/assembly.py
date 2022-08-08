@@ -349,7 +349,7 @@ def configure_logging(options):
         ch.setFormatter(formatter)
         logger.addHandler(ch)
 
-    fh = logging.FileHandler(os.path.join(options.out_dir, 'assembly.log'))
+    fh = logging.FileHandler(os.path.join(options.out_dir, '%s_assembly.log' %options.output_label))
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -365,6 +365,12 @@ def assemble(options):
     # save init args
     with open(os.path.join(options.out_dir, '%s_simulation_args.yaml'%options.output_label), 'w') as f:
         yaml.dump(options.__dict__, f)
+
+    try:
+        if options.write_params:
+            sys.exit()
+    except AttributeError:
+        pass
 
     logger = configure_logging(options)
 
