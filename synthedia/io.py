@@ -165,7 +165,6 @@ class InputReader (object):
     def __init__(self, options):
         logger = logging.getLogger("assembly_logger")
 
-
         self.peptides = []
 
         if options.use_existing_peptide_file:
@@ -249,6 +248,8 @@ class InputReader (object):
         return
 
     def read_pickle(self, options):
+
+        logger = logging.getLogger("assembly_logger")
 
         if not os.path.isfile(options.use_existing_peptide_file):
             msg = 'The specified peptide file was not found'

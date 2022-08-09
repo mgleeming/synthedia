@@ -428,6 +428,13 @@ def assemble(options):
     end = datetime.datetime.now()
     logger.info('Done!')
     logger.info('Total execution time: %s' %(end - start))
+
+    while logger.hasHandlers():
+        try:
+            logger.removeHandler(logger.handlers[0])
+        except IndexError:
+            break
+
     return
 
 
