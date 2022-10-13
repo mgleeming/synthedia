@@ -272,10 +272,13 @@ class SyntheticPeptide():
         self.rt = prosit_entry['Retention time'].iloc[0] * 60
         self.protein = 'None'
 
-        self.intensity = 2 ** np.random.normal(
-            loc = options.prosit_peptide_abundance_mean,
-            scale = options.prosit_peptide_abundance_stdev
-        )
+        if not options.preview:
+            self.intensity = 2 ** np.random.normal(
+                loc = options.prosit_peptide_abundance_mean,
+                scale = options.prosit_peptide_abundance_stdev
+            )
+        else:
+            self.intensity = float(options.preview_abundance)
 
         self.ms2_mzs = [float(_) for _ in prosit_entry['FragmentMz'].to_list()]
         self.ms2_ints = [float(_)*self.intensity for _ in prosit_entry['RelativeIntensity'].to_list()]
@@ -306,7 +309,7 @@ class SyntheticPeptide():
     def get_ms1_isotope_pattern(self, options):
         isotopes = []
         if self.decoy:
-            for isotope in mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
+            for isotope_i, isotope in enumerate(mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C'])):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
@@ -314,20 +317,24 @@ class SyntheticPeptide():
                     )
                 )
         else:
-            for isotope in mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
+            for isotope_i, isotope in enumerate(mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C'])):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
                         options, calc_mz, isotope[1] * self.intensity
                     )
                 )
+
+                # simulate onlyt he first isotope for preview
+                if options.preview:
+                    break
+
         self.ms1_isotopes = isotopes
         return
 
     def scale_retention_times(self, options):
 
         self.scaled_base_rt = self.rt / options.original_run_length * options.new_run_length
-
         self.scaled_rt_lists = []
 
         for group in range(options.n_groups):

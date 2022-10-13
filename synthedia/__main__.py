@@ -142,6 +142,15 @@ def main(args = None):
     decoy_args.add_argument( '--decoy_abundance_stdev', required = False, type = float, default = 3,
                         help = 'Standard deviation of gaussian used to simulate decoy ion abundances.')
 
+    preview_args = parser.add_argument_group("Preview")
+    preview_args.add_argument( '--preview', action = 'store_true',
+                        help = 'Simulate a single peptide and exit.')
+    preview_args.add_argument( '--preview_sequence', required = False, type = str, default = 'SAMPLER',
+                        help = 'Primary sequence of peptide to preview.')
+    preview_args.add_argument( '--preview_charge', required = False, type = int, default = 2,
+                        help = 'Charge of intact peptide to preview.')
+    preview_args.add_argument( '--preview_abundance', required = False, type = int, default = 1000000,
+                        help = 'Abundance of peptide to simulate')
 
     options =  parser.parse_args()
 

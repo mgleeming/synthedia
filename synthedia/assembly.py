@@ -8,6 +8,7 @@ from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calcula
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 from .io import InputReader, AcquisitionSchema
+from .preview import PreviewPeptide
 
 class NoPeptidesToSimulateError(Exception):
     pass
@@ -380,6 +381,12 @@ def assemble(options):
     logger.info('Config args:')
     for k,v in options.__dict__.items():
         logger.info('\t%s: %s' %(k,v))
+
+    if options.preview:
+        logger.info('Creating preview:')
+        preview = PreviewPeptide(options)
+        options.prosit = preview.get_dataframe_path()
+        options.all = True
 
     if not any([options.mq_txt_dir, options.prosit, options.use_existing_peptide_file]):
         msg = 'Either an MaxQuant output directory, Prosit library, or peptide file from a previous simulation is required'
