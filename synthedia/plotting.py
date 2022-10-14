@@ -2,7 +2,6 @@ import os
 
 from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle, Patch
-import seaborn as sns
 import numpy as np
 import pandas as pd
 from matplotlib.ticker import FormatStrFormatter

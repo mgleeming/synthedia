@@ -144,7 +144,7 @@ def main(args = None):
 
     preview_args = parser.add_argument_group("Preview")
     preview_args.add_argument( '--preview', action = 'store_true',
-                        help = 'Simulate a single peptide and exit.')
+                        help = 'Simulate a single peptide without a Prosit/MaxQuant file. Useful for testing parameter sets.')
     preview_args.add_argument( '--preview_sequence', required = False, type = str, default = 'SAMPLER',
                         help = 'Primary sequence of peptide to preview.')
     preview_args.add_argument( '--preview_charge', required = False, type = int, default = 2,

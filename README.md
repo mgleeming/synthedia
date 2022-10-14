@@ -12,7 +12,7 @@
 **[4. Input data types](#input-data-types)**<br>
 **[5. DIA acquisition strategies](#dia-acquisition-strategies)**<br>
 **[6. Decoy signals](#decoy-signals)**<br>
-**[7. Compatibility of Synthedia mzML files with other softeare](#compatibility-of-synthedia-mzml-files-with-other-softeare)**<br>
+**[7. Compatibility of Synthedia mzML files with other software](#compatibility-of-synthedia-mzml-files-with-other-softeare)**<br>
 **[8. Notes about the resulting data](#notes-about-the-resulting-data)**<br>
 **[9. Usage](#usage)**<br>
 **[10. Synthedia parameter reference](#synthedia-parameter-reference)**<br>
@@ -457,6 +457,17 @@ In this case the ```ms1_resolution``` parameter value given on the command line 
       --decoy_abundance_stdev DECOY_ABUNDANCE_STDEV
                             Standard deviation of gaussian used to simulate decoy
                             ion abundances.
+
+    Preview:
+      --preview             Simulate a single peptide without a Prosit/MaxQuant
+                            file. Useful for testing parameter sets.
+      --preview_sequence PREVIEW_SEQUENCE
+                            Primary sequence of peptide to preview.
+      --preview_charge PREVIEW_CHARGE
+                            Charge of intact peptide to preview.
+      --preview_abundance PREVIEW_ABUNDANCE
+                            Abundance of peptide to simulate
+
 
 ## Viewing mzML files
 
