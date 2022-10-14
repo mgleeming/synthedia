@@ -6,10 +6,7 @@ class PreviewPeptide (object):
 
     def __init__(self, options):
 
-        name = '%s_%s_preview_prosit.dat' %(
-            int(time.time()),
-            random.randint(0,999999999)
-        )
+        name = 'preview_prosit.dat'
 
         self.out_file = os.path.join(options.out_dir, name)
 

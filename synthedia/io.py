@@ -30,6 +30,9 @@ class AcquisitionSchema (object):
     def get_spectra(self):
         return self.spectra
 
+    def get_schema(self):
+        return self.schema
+
     def read_acquisition_schema_file(self, options):
         logger = logging.getLogger("assembly_logger")
         logger.info('\tReading acquisition schema file: %s' %(

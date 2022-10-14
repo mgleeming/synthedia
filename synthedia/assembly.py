@@ -432,6 +432,14 @@ def assemble(options):
         logger.info('Plotting TIC')
         plotting.plot_tic(options)
 
+    if (options.all == True) or (options.schema == True):
+        logger.info('Plotting Acquisition Schema')
+        plotting.plot_acquisition_schema(options, acquisition_schema.get_schema())
+
+    if options.preview:
+        logger.info('Plotting Preview Graphics')
+        plotting.plot_preview_graphics(options)
+
     end = datetime.datetime.now()
     logger.info('Done!')
     logger.info('Total execution time: %s' %(end - start))
