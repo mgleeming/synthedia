@@ -40,8 +40,12 @@ def plot_tic(options):
     ax[1].set_xlabel('Retention Time (min)')
     ax[0].set_ylabel('Intensity')
     ax[1].set_ylabel('Intensity')
-    ax[0].set_title('MS1')
-    ax[1].set_title('MS2')
+    ax[0].set_title('MS1 TIC')
+    ax[1].set_title('MS2 TIC')
+
+    ax[0].ticklabel_format(style='sci',scilimits=(0,0),axis='y')
+    ax[1].ticklabel_format(style='sci',scilimits=(0,0),axis='y')
+
     fig.savefig(os.path.join(options.out_dir, '%s_tic.jpg' %options.output_label), dpi = 300, bbox_inches = 'tight')
     return
 
@@ -114,6 +118,7 @@ def plot_preview_graphics(options):
     ax.set_xlabel('Retention Time (min)')
     ax.set_ylabel('m/z')
     ax.ticklabel_format(useOffset=False)
+    ax.set_title('MS1 m/z vs retention time heatmap')
     fig.savefig(os.path.join(options.out_dir, 'preview_heatmap.jpg'), dpi = 300, bbox_inches = 'tight')
 
     # find scan with highest max intensity
@@ -126,6 +131,7 @@ def plot_preview_graphics(options):
     ax.plot(scan_df['mz'], scan_df['intensity'], marker = 'o')
     ax.set_xlabel('m/z')
     ax.set_ylabel('Intensity')
+    ax.set_title('MS1 mass spectrum')
     fig.savefig(os.path.join(options.out_dir, 'preview_ms1_scan.jpg'), dpi = 300, bbox_inches = 'tight')
 
     return
