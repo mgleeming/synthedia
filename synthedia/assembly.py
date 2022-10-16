@@ -419,11 +419,14 @@ def assemble(options):
 
     logger.info('Calculating retention lengths')
     peptides = calculate_retention_lengths(options, peptides, spectra)
+    logger.info('Finished constructing peptide models')
 
+    logger.info('Starting mzML file construction')
     for groupi in range(options.n_groups):
         for samplei in range(options.samples_per_group):
             logger.info('Writing peptides to spectra')
             peptides = populate_spectra(options, peptides, spectra, groupi, samplei)
+    logger.info('Finished mzML file construction')
 
     logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides)
