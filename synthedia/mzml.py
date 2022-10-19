@@ -33,7 +33,35 @@ class MZMLWriter():
     def __init__(self, out_file, n_spectra):
         self.n_spectra = n_spectra
         self.consumer = PlainMSDataWritingConsumer(out_file)
-        self.consumer.setExpectedSize(n_spectra,0)
+
+        experiment = ExperimentalSettings()
+        instrument = Instrument()
+
+        # set ionisation source
+        source = IonSource()
+        source.setOrder(1)
+        source.setIonizationMethod(20) # nano ESI
+        instrument.setIonSources([source])
+
+        # set analyser
+        # see pyopenms.pyopenms_6.__AnalyzerType.__dict__
+        # for mapping of integers to analyser types
+        analysers = []
+        for analyser_id in [1,13]: # 1 = Quad, 13 = Orbi
+            analyser = MassAnalyzer()
+            analyser.setType(analyser_id)
+            analyser.setOrder(2)
+            analysers.append(analyser)
+        instrument.setMassAnalyzers(analysers)
+
+        # set detector
+        detector = IonDetector()
+        detector.setOrder(3)
+        detector.setType(20)
+        instrument.setIonDetectors([detector])
+
+        experiment.setInstrument(instrument)
+        self.consumer.setExperimentalSettings(experiment)
 
         self.n_spec_written = 1
         return
@@ -71,6 +99,10 @@ class MZMLWriter():
             p.setMZ((spec.isolation_hl + spec.isolation_ll) / 2)
             p.setIsolationWindowLowerOffset(spec.lower_offset)
             p.setIsolationWindowUpperOffset(spec.upper_offset)
+
+            p.setActivationMethods(set([0]))
+            p.setActivationEnergy(30)
+
             spec_to_write.setPrecursors( [p] )
 
         spec_to_write.updateRanges()
@@ -96,12 +128,19 @@ class MZMLWriter():
 
         spec_to_write.setInstrumentSettings( instrument_settings)
 
+        spec_to_write.setMetaValue('lowest observed m/z', min(mzs))
+        spec_to_write.setMetaValue('highest observed m/z', max(mzs))
+        spec_to_write.setMetaValue('base peak intensity', max(ints))
+        spec_to_write.setMetaValue('base peak m/z', mzs[np.argmax(ints)])
+        spec_to_write.setMetaValue('total ion current', sum(ints))
+
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1
         del spec_to_write
         return
 
     def close(self):
+        self.consumer.setExpectedSize(self.n_spec_written, 0)
         del self.consumer
         return
 
