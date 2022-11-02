@@ -315,6 +315,9 @@ class InputReader (object):
             peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
             found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
+            # peak shape
+            peptide_rt_stdev = get_peptide_rt_stdev(options)
+
             for ___, evidence_row in peptide.iterrows():
 
                 counter += 1
@@ -343,6 +346,7 @@ class InputReader (object):
                         sample_abundance_offsets = sample_abundance_offsets,
                         found_in_group = found_in_group,
                         found_in_sample = found_in_sample,
+                        peptide_rt_stdev = peptide_rt_stdev
                     )
                 )
 
@@ -382,6 +386,9 @@ class InputReader (object):
             peptide_abundance_offsets_between_groups, sample_abundance_offsets = generate_group_and_sample_abundances(options)
             found_in_group, found_in_sample = generate_group_and_sample_probabilities(options)
 
+            # peak shape
+            peptide_rt_stdev = get_peptide_rt_stdev(options)
+
             for __, precursor in peptide.groupby(['PrecursorCharge']):
 
                 counter += 1
@@ -400,6 +407,7 @@ class InputReader (object):
                         sample_abundance_offsets = sample_abundance_offsets,
                         found_in_group = found_in_group,
                         found_in_sample = found_in_sample,
+                        peptide_rt_stdev = peptide_rt_stdev
                     )
                 )
 
@@ -480,6 +488,9 @@ class InputReader (object):
             if (float(lipid_dict['PRECURSORMZ']) < options.ms1_min_mz) or (float(lipid_dict['PRECURSORMZ']) > options.ms1_max_mz):
                 continue
 
+            # peak shape
+            peptide_rt_stdev = get_peptide_rt_stdev(options)
+
             peptides.append(
                 SyntheticPeptide(
                     options,
@@ -488,6 +499,7 @@ class InputReader (object):
                     sample_abundance_offsets = sample_abundance_offsets,
                     found_in_group = found_in_group,
                     found_in_sample = found_in_sample,
+                    peptide_rt_stdev = peptide_rt_stdev
                 )
             )
 
@@ -538,3 +550,24 @@ def generate_group_and_sample_probabilities(options):
             ])
 
     return found_in_group, found_in_sample
+
+def get_peptide_rt_stdev(options):
+
+    # calculate peak standard deviations
+    # sigma = FWHM / (2 * sqrt(2 * loge(2)))
+    factor = 2.35482004503095
+
+    # peptide fwhm
+    fwhm = options.rt_peak_model(None, **{
+        'mu': options.rt_peak_fwhm,
+        'sig': options.rt_peak_fwhm_stdev,
+        'emg_k': options.rt_peak_fwhm_emg_k
+    })
+
+    if fwhm < options.min_rt_peak_fwhm:
+        fwhm = options.min_rt_peak_fwhm
+
+    # chromatographic peak stdev
+    peptide_rt_stdev = fwhm / factor
+
+    return peptide_rt_stdev

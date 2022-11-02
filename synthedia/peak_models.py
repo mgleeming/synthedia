@@ -9,17 +9,28 @@ class PeakModels(object):
 
     @staticmethod
     def gaussian(x, **kwargs):
-        return norm.pdf(x, kwargs['mu'], kwargs['sig'])
+        if x is not None:
+            return norm.pdf(x, kwargs['mu'], kwargs['sig'])
+        else:
+            return norm.rvs(kwargs['mu'], kwargs['sig'])
+
 
     @staticmethod
     def exponentially_modified_gaussian(x, **kwargs):
         if kwargs['emg_k'] <= 0:
-            return gaussian(**kwargs)
-        return exponnorm.pdf(x, kwargs['emg_k'], kwargs['mu'], kwargs['sig'])
+            return PeakModels.gaussian(x, **kwargs)
+
+        if x is not None:
+            return exponnorm.pdf(x, kwargs['emg_k'], kwargs['mu'], kwargs['sig'])
+        else:
+            return exponnorm.rvs(kwargs['emg_k'], kwargs['mu'], kwargs['sig'])
 
     @staticmethod
     def cauchy(x, **kwargs):
-        return cauchy.pdf(x, kwargs['mu'], kwargs['sig'])
+        if x is not None:
+            return cauchy.pdf(x, kwargs['mu'], kwargs['sig'])
+        else:
+            return cauchy.rvs(kwargs['mu'], kwargs['sig'])
 
     def get_rt_peak_model(self, options):
         try:

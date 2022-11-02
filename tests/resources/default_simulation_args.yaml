@@ -44,6 +44,9 @@ rt_buffer: 5
 rt_emg_k: 2
 rt_instability: 15
 rt_peak_fwhm: 7
+rt_peak_fwhm_stdev: 0.3
+rt_peak_fwhm_emg_k: 3 
+min_rt_peak_fwhm: 1
 rt_peak_model: exponentially_modified_gaussian
 samples_per_group: 1
 schema: false

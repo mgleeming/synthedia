@@ -315,9 +315,6 @@ def get_extra_parameters(options):
     options.ms1_point_diff = dm_ms1 / options.n_points_gt_fwhm
     options.ms2_point_diff = dm_ms2 / options.n_points_gt_fwhm
 
-    # chromatographic peak stdev
-    options.rt_stdev = options.rt_peak_fwhm / factor
-
     # determine peak models to use
     pm = PeakModels()
 

@@ -124,7 +124,8 @@ class SyntheticPeptide():
             peptide_abundance_offsets_between_groups = None,
             sample_abundance_offsets = None,
             found_in_group = None,
-            found_in_sample = None
+            found_in_sample = None,
+            peptide_rt_stdev = None,
         ):
 
         self.decoy = False
@@ -145,6 +146,7 @@ class SyntheticPeptide():
 
         self.found_in_sample = found_in_sample
         self.found_in_group = found_in_group
+        self.peptide_rt_stdev = peptide_rt_stdev
 
         self.scale_retention_times(options)
         self.set_abundances()
@@ -393,7 +395,7 @@ class SyntheticPeptide():
 
                 # base peak model
                 model_ints = options.rt_peak_model(ms_rts, **{
-                    'mu': self.scaled_rt_lists[group][sample], 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+                    'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
                 })
 
                 # multiply by peptide intensity
@@ -472,8 +474,12 @@ def calculate_feature_windows(options, peptides, spectra):
     # calculate rt clip window
     ms_rts = np.asarray([s.rt for s in spectra])
 
+    # find peak with largest stdev
+    max_peptide_rt_stdev = max([p.peptide_rt_stdev for p in peptides])
     ints = options.rt_peak_model(ms_rts, **{
-        'mu': max_int_peptide.scaled_base_rt, 'sig': options.rt_stdev, 'emg_k': options.rt_emg_k
+        'mu': max_int_peptide.scaled_base_rt,
+        'sig': max_peptide_rt_stdev,
+        'emg_k': options.rt_emg_k
     })
 
     ints *= peak_int

@@ -78,7 +78,14 @@ def main(args = None):
 
     chromatography_args = parser.add_argument_group("Chromatography")
     chromatography_args.add_argument( '--rt_peak_fwhm', required = False, type = float, default = 4,
-                        help = 'Chromatographic peak full with at half maximum intehsity in seconds.')
+                        help = 'Chromatographic peak full with at half maximum intehsity in seconds. If --rt_peak_fwhm_stdev is non-zero, this value is the mean of a Gaussian distribution from which FWHMs for individual peptides are drawn')
+    chromatography_args.add_argument( '--rt_peak_fwhm_stdev', required = False, type = float, default = 0.3,
+                        help = 'Standard deviation of a Gaussian distribution from which chromatographic peak full with at half maximum intehsity are drawn for indifivual peptides.')
+    chromatography_args.add_argument( '--rt_peak_fwhm_emg_k', required = False, type = float, default = 3,
+                        help = 'Shape factor for exponentially modified gaussian from which peak FWHMs are drawn. Must be greater than 0. Increasing this value results in a more heavily tailed distribution resulting in more peptides with broad chromatographic profiles')
+
+    chromatography_args.add_argument( '--min_rt_peak_fwhm', required = False, type = float, default = 1,
+                        help = 'Minimum chromatographic peak full with at half maximum intehsity in seconds.')
     chromatography_args.add_argument( '--original_run_length', required = False, type = float, default = 0,
                         help = 'Length in minutes of original data file. If not given, this will be determined by taking the difference between the minimum and maximum peptide retention times. If set to "0", the retention time range will be automatically detected from the input data.')
     chromatography_args.add_argument( '--new_run_length', required = False, type = float, default = 0,
