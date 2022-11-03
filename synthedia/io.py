@@ -558,10 +558,10 @@ def get_peptide_rt_stdev(options):
     factor = 2.35482004503095
 
     # peptide fwhm
-    fwhm = options.rt_peak_model(None, **{
-        'mu': options.rt_peak_fwhm,
-        'sig': options.rt_peak_fwhm_stdev,
-        'emg_k': options.rt_peak_fwhm_emg_k
+    fwhm = options.rt_peak_fwhm_distribution_model(None, **{
+        'mu': options.rt_peak_fwhm_distribution_mean,
+        'sig': options.rt_peak_fwhm_distribution_stdev,
+        'emg_k': options.rt_peak_fwhm_distribution_emg_k
     })
 
     if fwhm < options.min_rt_peak_fwhm:

@@ -1,8 +1,10 @@
 acquisition_schema: null
 all: false
 num_processors: 1
+prosit_peptide_abundance_model: exponentially_modified_gaussian
 prosit_peptide_abundance_mean: 22
 prosit_peptide_abundance_stdev: 2
+prosit_peptide_abundance_emg_k: 3
 between_group_stdev: 1.0
 centroid_ms1: false
 centroid_ms2: false
@@ -43,9 +45,10 @@ resolution_at: 200
 rt_buffer: 5
 rt_emg_k: 2
 rt_instability: 15
-rt_peak_fwhm: 7
-rt_peak_fwhm_stdev: 0.3
-rt_peak_fwhm_emg_k: 3 
+rt_peak_fwhm_distribution_model: exponentially_modified_gaussian
+rt_peak_fwhm_distribution_mean: 7
+rt_peak_fwhm_distribution_stdev: 0.3
+rt_peak_fwhm_distribution_emg_k: 3 
 min_rt_peak_fwhm: 1
 rt_peak_model: exponentially_modified_gaussian
 samples_per_group: 1
@@ -61,6 +64,7 @@ ms2_ppm_error_mean: 0
 ms2_ppm_error_stdev: 0
 decoy_abundance_mean: 22
 decoy_abundance_stdev: 3
+no_isotopes: false
 preview: false
 preview_abundance: 1000000
 preview_charge: 2

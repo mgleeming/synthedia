@@ -60,3 +60,31 @@ class PeakModels(object):
             )
         return mz_peak_model
 
+    def get_rt_peak_fwhm_distribution_model(self, options):
+        try:
+            rt_peak_fwhm_distribution_model = getattr(self, options.rt_peak_fwhm_distribution_model)
+        except AttributeError:
+            peak_models = []
+            for method in dir(self):
+                if ('__' in method) or ('get_' in method): continue
+                peak_models.append(method)
+            raise InvalidPeakModelError(
+                'RT peak FWHM distribution model selection %s is invalid. Valid options are: %s' % (
+                    options.rt_peak_fwhm_distribution_model, ', '.join(peak_models))
+            )
+        return rt_peak_fwhm_distribution_model
+
+    def get_prosit_peptide_abundance_model(self, options):
+        try:
+            prosit_abundance_model = getattr(self, options.prosit_peptide_abundance_model)
+        except AttributeError:
+            peak_models = []
+            for method in dir(self):
+                if ('__' in method) or ('get_' in method): continue
+                peak_models.append(method)
+            raise InvalidPeakModelError(
+                'Prosit abundance model selection %s is invalid. Valid options are: %s' % (
+                    options.prosit_peptide_abundance_model, ', '.join(peak_models))
+            )
+        return prosit_abundance_model
+

@@ -318,8 +318,11 @@ def get_extra_parameters(options):
     # determine peak models to use
     pm = PeakModels()
 
+    # distributions
     options.rt_peak_model = pm.get_rt_peak_model(options)
     options.mz_peak_model = pm.get_mz_peak_model(options)
+    options.prosit_abundance_model = pm.get_prosit_peptide_abundance_model(options)
+    options.rt_peak_fwhm_distribution_model = pm.get_rt_peak_fwhm_distribution_model(options)
 
     if int(options.original_run_length) == 0:
         # get default retention time range

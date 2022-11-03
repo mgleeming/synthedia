@@ -275,10 +275,11 @@ class SyntheticPeptide():
         self.protein = 'None'
 
         if not options.preview:
-            self.intensity = 2 ** np.random.normal(
-                loc = options.prosit_peptide_abundance_mean,
-                scale = options.prosit_peptide_abundance_stdev
-            )
+            self.intensity = 2 ** options.prosit_abundance_model(None, **{
+                'mu': options.prosit_peptide_abundance_mean,
+                'sig': options.prosit_peptide_abundance_stdev,
+                'emg_k': options.prosit_peptide_abundance_emg_k
+            })
         else:
             self.intensity = float(options.preview_abundance)
 
@@ -318,6 +319,10 @@ class SyntheticPeptide():
                         options, calc_mz, isotope[1] * self.intensity
                     )
                 )
+
+                if options.no_isotopes:
+                    break
+
         else:
             for isotope_i, isotope in enumerate(mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C'])):
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
@@ -329,6 +334,9 @@ class SyntheticPeptide():
 
                 # simulate onlyt he first isotope for preview
                 if options.preview:
+                    break
+
+                if options.no_isotopes:
                     break
 
         self.ms1_isotopes = isotopes
