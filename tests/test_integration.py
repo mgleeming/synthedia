@@ -369,3 +369,19 @@ def test_decoy_msp():
     create_test_dir()
     options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'decoy_msp_file': os.path.join(TEST_RESOURCES, 'decoy.msp')})
     assembly.assemble(options)
+
+def test_preview():
+    create_test_dir()
+    options = update_param({'preview': True, 'preview_sequence': 'PEPTIDEPEPTIDE', 'preview_charge': 3})
+    assembly.assemble(options)
+    check_files()
+
+def test_no_preview_peptides():
+    with pytest.raises(Exception):
+        create_test_dir()
+        # peptide precursor mass < min mz range - gets filtered out - no peptides to simulate
+        options = update_param({'preview': True, 'preview_sequence': 'PEPTIDE', 'preview_charge': 3})
+        assembly.assemble(options)
+        check_files()
+
+

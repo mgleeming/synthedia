@@ -406,6 +406,9 @@ class SyntheticPeptide():
                     'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
                 })
 
+                # normalise so that max intensity is 1
+                model_ints = model_ints / max(model_ints)
+
                 # multiply by peptide intensity
                 ints = self.intensity * model_ints
 
@@ -414,7 +417,6 @@ class SyntheticPeptide():
 
                 # rts of spectra above threshold
                 peak_rts = ms_rts[mask]
-
 
                 # equivalent mask of spectral indicies
                 ids_subset_2 = ids_subset[mask]
