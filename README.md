@@ -201,272 +201,273 @@ Rather than specifying arguments on the commmand line, processing parameters can
 synthedia --config /path/to/params.yaml
 ```
 
-Assitional or updated parameters can be specified:
+Additional or updated parameters can be specified:
 ```
 synthedia --config /path/to/params.yaml  --ms1_resolution 100000
 ```
-
 In this case the ```ms1_resolution``` parameter value given on the command line is used even if a different value is given in ```/path/to/params.yaml```. That is, the heirarchy is command line parameter > config.yaml > synthedia default.
+
+To quickly see the impact of changing input parameters, a single peptide ion can be modelled from the command line and no additional input files are required (i.e. the requirement for a Prosit or MaxQuant input is removed):
+```
+synthedia --preview --preview_sequence PEPTIDE --preview_charge 2
+```
+
+For example, to model a broad chromatographic peak, the mean peak full-width at half-maximum intensity (FWHM) can be increased:
+```
+synthedia --preview --preview_sequence PEPTIDE --preview_charge 2 --rt_peak_fwhm_distribution_mean 10
+```
+A series of plots are generated in the directiry specified in ```--out_dir``` to visualise the change.
 
 ## Synthedia parameter reference
     usage: synthedia [-h] [--mq_txt_dir MQ_TXT_DIR] [--prosit PROSIT]
-                     [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
-                     [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
-                     [--acquisition_schema ACQUISITION_SCHEMA]
-                     [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE]
-                     [--out_dir OUT_DIR] [--output_label OUTPUT_LABEL]
-                     [--config CONFIG] [--silent] [--write_params]
-                     [--mq_pep_threshold MQ_PEP_THRESHOLD]
-                     [--filterTerm FILTERTERM] [--num_processors NUM_PROCESSORS]
-                     [--ms1_min_mz MS1_MIN_MZ] [--ms1_max_mz MS1_MAX_MZ]
-                     [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
-                     [--ms1_resolution MS1_RESOLUTION]
-                     [--ms2_resolution MS2_RESOLUTION]
-                     [--ms1_scan_duration MS1_SCAN_DURATION]
-                     [--ms2_scan_duration MS2_SCAN_DURATION]
-                     [--isolation_window ISOLATION_WINDOW]
-                     [--resolution_at RESOLUTION_AT]
-                     [--n_points_gt_fwhm N_POINTS_GT_FWHM]
-                     [--esi_instability ESI_INSTABILITY]
-                     [--ms1_ppm_error_mean MS1_PPM_ERROR_MEAN]
-                     [--ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV]
-                     [--ms2_ppm_error_mean MS2_PPM_ERROR_MEAN]
-                     [--ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV]
-                     [--rt_peak_fwhm RT_PEAK_FWHM]
-                     [--original_run_length ORIGINAL_RUN_LENGTH]
-                     [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
-                     [--rt_instability RT_INSTABILITY]
-                     [--ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY]
-                     [--ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY]
-                     [--centroid_ms1] [--centroid_ms2] [--write_empty_spectra]
-                     [--mz_peak_model MZ_PEAK_MODEL]
-                     [--rt_peak_model RT_PEAK_MODEL] [--mz_emg_k MZ_EMG_K]
-                     [--rt_emg_k RT_EMG_K]
-                     [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
-                     [--prob_missing_in_group PROB_MISSING_IN_GROUP] [--tic]
-                     [--schema] [--all] [--n_groups N_GROUPS]
-                     [--samples_per_group SAMPLES_PER_GROUP]
-                     [--between_group_stdev BETWEEN_GROUP_STDEV]
-                     [--within_group_stdev WITHIN_GROUP_STDEV]
-                     [--decoy_msp_file DECOY_MSP_FILE] [--num_decoys NUM_DECOYS]
-                     [--simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS]
-                     [--decoy_abundance_mean DECOY_ABUNDANCE_MEAN]
-                     [--decoy_abundance_stdev DECOY_ABUNDANCE_STDEV]
+                 [--prosit_peptide_abundance_model PROSIT_PEPTIDE_ABUNDANCE_MODEL]
+                 [--prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN]
+                 [--prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV]
+                 [--prosit_peptide_abundance_emg_k PROSIT_PEPTIDE_ABUNDANCE_EMG_K]
+                 [--acquisition_schema ACQUISITION_SCHEMA]
+                 [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE] [--out_dir OUT_DIR]
+                 [--output_label OUTPUT_LABEL] [--config CONFIG] [--silent] [--write_params]
+                 [--mq_pep_threshold MQ_PEP_THRESHOLD] [--filterTerm FILTERTERM]
+                 [--num_processors NUM_PROCESSORS] [--ms1_min_mz MS1_MIN_MZ]
+                 [--ms1_max_mz MS1_MAX_MZ] [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
+                 [--ms1_resolution MS1_RESOLUTION] [--ms2_resolution MS2_RESOLUTION]
+                 [--ms1_scan_duration MS1_SCAN_DURATION] [--ms2_scan_duration MS2_SCAN_DURATION]
+                 [--isolation_window ISOLATION_WINDOW] [--resolution_at RESOLUTION_AT]
+                 [--n_points_gt_fwhm N_POINTS_GT_FWHM] [--esi_instability ESI_INSTABILITY]
+                 [--ms1_ppm_error_mean MS1_PPM_ERROR_MEAN]
+                 [--ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV]
+                 [--ms2_ppm_error_mean MS2_PPM_ERROR_MEAN]
+                 [--ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV]
+                 [--rt_peak_fwhm_distribution_model RT_PEAK_FWHM_DISTRIBUTION_MODEL]
+                 [--rt_peak_fwhm_distribution_mean RT_PEAK_FWHM_DISTRIBUTION_MEAN]
+                 [--rt_peak_fwhm_distribution_stdev RT_PEAK_FWHM_DISTRIBUTION_STDEV]
+                 [--rt_peak_fwhm_distribution_emg_k RT_PEAK_FWHM_DISTRIBUTION_EMG_K]
+                 [--min_rt_peak_fwhm MIN_RT_PEAK_FWHM] [--original_run_length ORIGINAL_RUN_LENGTH]
+                 [--new_run_length NEW_RUN_LENGTH] [--rt_buffer RT_BUFFER]
+                 [--rt_instability RT_INSTABILITY] [--ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY]
+                 [--ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY] [--centroid_ms1] [--centroid_ms2]
+                 [--write_empty_spectra] [--mz_peak_model MZ_PEAK_MODEL]
+                 [--rt_peak_model RT_PEAK_MODEL] [--mz_emg_k MZ_EMG_K] [--rt_emg_k RT_EMG_K]
+                 [--prob_missing_in_sample PROB_MISSING_IN_SAMPLE]
+                 [--prob_missing_in_group PROB_MISSING_IN_GROUP] [--no_isotopes] [--tic] [--schema]
+                 [--all] [--n_groups N_GROUPS] [--samples_per_group SAMPLES_PER_GROUP]
+                 [--between_group_stdev BETWEEN_GROUP_STDEV]
+                 [--within_group_stdev WITHIN_GROUP_STDEV] [--decoy_msp_file DECOY_MSP_FILE]
+                 [--num_decoys NUM_DECOYS]
+                 [--simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS]
+                 [--decoy_abundance_mean DECOY_ABUNDANCE_MEAN]
+                 [--decoy_abundance_stdev DECOY_ABUNDANCE_STDEV] [--preview]
+                 [--preview_sequence PREVIEW_SEQUENCE] [--preview_charge PREVIEW_CHARGE]
+                 [--preview_abundance PREVIEW_ABUNDANCE]
 
-    Generate synthetic DIA LC-MS/MS bottom up proteomics data with known
-    composition.
+      Generate synthetic DIA LC-MS/MS bottom up proteomics data with known composition.
 
-    optional arguments:
-      -h, --help            show this help message and exit
+      optional arguments:
+        -h, --help            show this help message and exit
 
-    Input/Output:
-      --mq_txt_dir MQ_TXT_DIR
-                            Path to MaxQuat "txt" directory.
-      --prosit PROSIT       Path to prosit prediction library.
-      --prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN
-                            Mean log2 abundance used to simulate peptide
-                            abundances for prosit input types. Not used for
-                            MaxQuat input types.
-      --prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV
-                            Standard deviation of gaussian used to simulate
-                            peptide abundances for prosit input types. Not used
-                            for MaxQuant input types.
-      --acquisition_schema ACQUISITION_SCHEMA
-                            Path to file defining MS2 acquisition schema.
-      --use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE
-                            Path to an existin peptide file which will be used.
-      --out_dir OUT_DIR     Output directory where results should be written.
-      --output_label OUTPUT_LABEL
-                            Prefix for output files.
-      --config CONFIG       Path to *.yaml config file.
-      --silent              Do not print logging output to terminal
-      --write_params        Write parameters to yaml file and exit.
+      Input/Output:
+        --mq_txt_dir MQ_TXT_DIR
+                              Path to MaxQuat "txt" directory.
+        --prosit PROSIT       Path to prosit prediction library.
+        --prosit_peptide_abundance_model PROSIT_PEPTIDE_ABUNDANCE_MODEL
+                              The model from which log2 abundance values are drawn to generate abundances
+                              for prosit precursors. Can be "gaussian", "exponentially_modified_gaussian"
+                              or "cauchy". Not used for MaxQuant input types.
+        --prosit_peptide_abundance_mean PROSIT_PEPTIDE_ABUNDANCE_MEAN
+                              Mean log2 abundance used to simulate peptide abundances for prosit input
+                              types. Not used for MaxQuat input types.
+        --prosit_peptide_abundance_stdev PROSIT_PEPTIDE_ABUNDANCE_STDEV
+                              Standard deviation of gaussian used to simulate peptide abundances for prosit
+                              input types. Not used for MaxQuant input types.
+        --prosit_peptide_abundance_emg_k PROSIT_PEPTIDE_ABUNDANCE_EMG_K
+                              Shape factor for exponentially modified gaussian from which peptide
+                              abundances are drawn for prosit input types. Must be greater than 0.
+                              Increasing this value results in a more heavily tailed distribution resulting
+                              in more peptides higher intensities. Not used for MaxQuant input types
+        --acquisition_schema ACQUISITION_SCHEMA
+                              Path to file defining MS2 acquisition schema.
+        --use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE
+                              Path to an existin peptide file which will be used.
+        --out_dir OUT_DIR     Output directory where results should be written.
+        --output_label OUTPUT_LABEL
+                              Prefix for output files.
+        --config CONFIG       Path to *.yaml config file.
+        --silent              Do not print logging output to terminal
+        --write_params        Write parameters to yaml file and exit.
 
-    Filtering:
-      --mq_pep_threshold MQ_PEP_THRESHOLD
-                            For MaxQuant input data, use only peptides with a
-                            Posterior Error Probability (PEP) less than this value
-      --filterTerm FILTERTERM
-                            Terms used to filter input maxquant lists to remove
-                            unwanted targets. For example contaminant protein can
-                            be removed by specifying "--filterTerm CON_". Multiple
-                            filters can be applied. For example "--filterTerm CON_
-                            --filterTerm REV_". Filters are used only for MaxQuant
-                            input types (no effect for Prosit) and are applied to
-                            the "Proteins" column of the evidence.txt table.
+      Filtering:
+        --mq_pep_threshold MQ_PEP_THRESHOLD
+                              For MaxQuant input data, use only peptides with a Posterior Error Probability
+                              (PEP) less than this value
+        --filterTerm FILTERTERM
+                              Terms used to filter input maxquant lists to remove unwanted targets. For
+                              example contaminant protein can be removed by specifying "--filterTerm CON_".
+                              Multiple filters can be applied. For example "--filterTerm CON_ --filterTerm
+                              REV_". Filters are used only for MaxQuant input types (no effect for Prosit)
+                              and are applied to the "Proteins" column of the evidence.txt table.
 
-    Processing:
-      --num_processors NUM_PROCESSORS
-                            Number of cores to use in constructing mzML files.
-                            Defaults to all available cores
+      Processing:
+        --num_processors NUM_PROCESSORS
+                              Number of cores to use in constructing mzML files. Defaults to all available
+                              cores
 
-    Instrument Parameters:
-      --ms1_min_mz MS1_MIN_MZ
-                            Minimum m/z at MS1 level.
-      --ms1_max_mz MS1_MAX_MZ
-                            Maximum m/z at MS1 level.
-      --ms2_min_mz MS2_MIN_MZ
-                            Minimum m/z at MS2 level.
-      --ms2_max_mz MS2_MAX_MZ
-                            Maximum m/z at MS2 level.
-      --ms1_resolution MS1_RESOLUTION
-                            Mass spectral resolution at MS1 level.
-      --ms2_resolution MS2_RESOLUTION
-                            Mass spectral resolution at MS2 level.
-      --ms1_scan_duration MS1_SCAN_DURATION
-                            Time in seconds taken to record an MS1 scan.
-      --ms2_scan_duration MS2_SCAN_DURATION
-                            Time in seconds taken to record an MS2 scan.
-      --isolation_window ISOLATION_WINDOW
-                            Length of DIA window in m/z.
-      --resolution_at RESOLUTION_AT
-                            m/z value at which resolution is defined.
-      --n_points_gt_fwhm N_POINTS_GT_FWHM
-                            Number of MS data points greater than the peak FWHM.
-                            Increasing this number means each mass spectral peak
-                            will be described by more data points but will also
-                            slow processing time and increase file size.
-      --esi_instability ESI_INSTABILITY
-                            Simulates imperfection in chromatographic peaks by
-                            applying a randomly intensity scaling factor to
-                            adjacent scans. A value of 0 indicates no randomness.
-                            A value of 100 indicates high spray instability.
-      --ms1_ppm_error_mean MS1_PPM_ERROR_MEAN
-                            The mean value of a Gaussian distribution from which
-                            PPM errors for MS1 precursors will be drawn. This
-                            value can be negative. Setting both
-                            ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0
-                            equates to perfect mass accuracy.
-      --ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV
-                            The standard deviation of a Gaussian distribution from
-                            which PPM errors for MS1 precursors will be drawn.
-                            Setting both ms1_ppm_error_mean and
-                            ms1_ppm_error_stdev to 0 equates to perfect mass
-                            accuracy.
-      --ms2_ppm_error_mean MS2_PPM_ERROR_MEAN
-                            The mean value of a Gaussian distribution from which
-                            PPM errors for MS2 fragments will be drawn. This value
-                            can be negative. Setting both ms1_ppm_error_mean, and
-                            ms1_ppm_error_stdev to 0 equates to perfect mass
-                            accuracy.
-      --ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV
-                            The standard deviation of a Gaussian distribution from
-                            which PPM errors for MS2 fragments will be drawn.
-                            Setting both ms1_ppm_error_mean and
-                            ms1_ppm_error_stdev to 0 equates to perfect mass
-                            accuracy.
+      Instrument Parameters:
+        --ms1_min_mz MS1_MIN_MZ
+                              Minimum m/z at MS1 level.
+        --ms1_max_mz MS1_MAX_MZ
+                              Maximum m/z at MS1 level.
+        --ms2_min_mz MS2_MIN_MZ
+                              Minimum m/z at MS2 level.
+        --ms2_max_mz MS2_MAX_MZ
+                              Maximum m/z at MS2 level.
+        --ms1_resolution MS1_RESOLUTION
+                              Mass spectral resolution at MS1 level.
+        --ms2_resolution MS2_RESOLUTION
+                              Mass spectral resolution at MS2 level.
+        --ms1_scan_duration MS1_SCAN_DURATION
+                              Time in seconds taken to record an MS1 scan.
+        --ms2_scan_duration MS2_SCAN_DURATION
+                              Time in seconds taken to record an MS2 scan.
+        --isolation_window ISOLATION_WINDOW
+                              Length of DIA window in m/z.
+        --resolution_at RESOLUTION_AT
+                              m/z value at which resolution is defined.
+        --n_points_gt_fwhm N_POINTS_GT_FWHM
+                              Number of MS data points greater than the peak FWHM. Increasing this number
+                              means each mass spectral peak will be described by more data points but will
+                              also slow processing time and increase file size.
+        --esi_instability ESI_INSTABILITY
+                              Simulates imperfection in chromatographic peaks by applying a randomly
+                              intensity scaling factor to adjacent scans. A value of 0 indicates no
+                              randomness. A value of 100 indicates high spray instability.
+        --ms1_ppm_error_mean MS1_PPM_ERROR_MEAN
+                              The mean value of a Gaussian distribution from which PPM errors for MS1
+                              precursors will be drawn. This value can be negative. Setting both
+                              ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0 equates to perfect mass
+                              accuracy.
+        --ms1_ppm_error_stdev MS1_PPM_ERROR_STDEV
+                              The standard deviation of a Gaussian distribution from which PPM errors for
+                              MS1 precursors will be drawn. Setting both ms1_ppm_error_mean and
+                              ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.
+        --ms2_ppm_error_mean MS2_PPM_ERROR_MEAN
+                              The mean value of a Gaussian distribution from which PPM errors for MS2
+                              fragments will be drawn. This value can be negative. Setting both
+                              ms1_ppm_error_mean, and ms1_ppm_error_stdev to 0 equates to perfect mass
+                              accuracy.
+        --ms2_ppm_error_stdev MS2_PPM_ERROR_STDEV
+                              The standard deviation of a Gaussian distribution from which PPM errors for
+                              MS2 fragments will be drawn. Setting both ms1_ppm_error_mean and
+                              ms1_ppm_error_stdev to 0 equates to perfect mass accuracy.
 
-    Chromatography:
-      --rt_peak_fwhm RT_PEAK_FWHM
-                            Chromatographic peak full with at half maximum
-                            intehsity in seconds.
-      --original_run_length ORIGINAL_RUN_LENGTH
-                            Length in minutes of original data file. If not given,
-                            this will be determined by taking the difference
-                            between the minimum and maximum peptide retention
-                            times. If set to "0", the retention time range will be
-                            automatically detected from the input data.
-      --new_run_length NEW_RUN_LENGTH
-                            Length in minutes of new data file. If set to "0", the
-                            retention time range of the input data will be used.
-      --rt_buffer RT_BUFFER
-                            Time (in minutes) that should be appended to the
-                            beginning and end of the retention time range of a set
-                            of input peptides. This helps ensure that peptides at
-                            the boundaries of the elution window are simulated
-                            completely
-      --rt_instability RT_INSTABILITY
-                            Introduces an instability in retentention time values
-                            for the same peptide when a multi-group or multi-
-                            sample simulation is conducted. The value is the
-                            maximum number of seconds by which peptide retention
-                            times will differ
+      Chromatography:
+        --rt_peak_fwhm_distribution_model RT_PEAK_FWHM_DISTRIBUTION_MODEL
+                              The model used to simulate chromatographic peaks. Can be "gaussian",
+                              "exponentially_modified_gaussian" or "cauchy"
+        --rt_peak_fwhm_distribution_mean RT_PEAK_FWHM_DISTRIBUTION_MEAN
+                              Chromatographic peak full with at half maximum intehsity in seconds. If
+                              --rt_peak_fwhm_stdev is non-zero, this value is the mean of a Gaussian
+                              distribution from which FWHMs for individual peptides are drawn
+        --rt_peak_fwhm_distribution_stdev RT_PEAK_FWHM_DISTRIBUTION_STDEV
+                              Standard deviation of a Gaussian distribution from which chromatographic peak
+                              full with at half maximum intehsity are drawn for indifivual peptides.
+        --rt_peak_fwhm_distribution_emg_k RT_PEAK_FWHM_DISTRIBUTION_EMG_K
+                              Shape factor for exponentially modified gaussian from which peak FWHMs are
+                              drawn. Must be greater than 0. Increasing this value results in a more
+                              heavily tailed distribution resulting in more peptides with broad
+                              chromatographic profiles
+        --min_rt_peak_fwhm MIN_RT_PEAK_FWHM
+                              Minimum chromatographic peak full with at half maximum intehsity in seconds.
+        --original_run_length ORIGINAL_RUN_LENGTH
+                              Length in minutes of original data file. If not given, this will be
+                              determined by taking the difference between the minimum and maximum peptide
+                              retention times. If set to "0", the retention time range will be
+                              automatically detected from the input data.
+        --new_run_length NEW_RUN_LENGTH
+                              Length in minutes of new data file. If set to "0", the retention time range
+                              of the input data will be used.
+        --rt_buffer RT_BUFFER
+                              Time (in minutes) that should be appended to the beginning and end of the
+                              retention time range of a set of input peptides. This helps ensure that
+                              peptides at the boundaries of the elution window are simulated completely
+        --rt_instability RT_INSTABILITY
+                              Introduces an instability in retentention time values for the same peptide
+                              when a multi-group or multi-sample simulation is conducted. The value is the
+                              maximum number of seconds by which peptide retention times will differ
 
-    Simulation:
-      --ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY
-                            Peptide elution profiles are simulated as gaussian
-                            peaks. This value sets the minimum gaussian curve
-                            intensitiy for a peptide to be simulated in MS1
-                            spectra.
-      --ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY
-                            Peptide elution profiles are simulated as gaussian
-                            peaks. This value sets the minimum gaussian curve
-                            intensitiy for a peptide to be simulated in MS2
-                            spectra.
-      --centroid_ms1        If given, simulated MS1 mass spectra will be
-                            centroided. Otherwise, profile data will be written.
-      --centroid_ms2        If given, simulated MS2 mass spectra will be
-                            centroided. Otherwise, profile data will be written.
-      --write_empty_spectra
-                            Write empty mass sepctra to the output data file
-      --mz_peak_model MZ_PEAK_MODEL
-                            The model used to simulate mass spectral peaks. Can be
-                            "gaussian", "exponentially_modified_gaussian" or
-                            "cauchy"
-      --rt_peak_model RT_PEAK_MODEL
-                            The model used to simulate chromatographic peaks. Can
-                            be "gaussian", "exponentially_modified_gaussian" or
-                            "cauchy"
-      --mz_emg_k MZ_EMG_K   Shape factor for exponentially modified gaussian in
-                            the mass spectral domain. Must be greater than 0.
-                            Increasing K results in more heavily tailed mass
-                            spectral peaks. This parameter is inactive unless
-                            --mz_peak_model is not set to
-                            exponentially_modified_gaussian.
-      --rt_emg_k RT_EMG_K   Shape factor for exponentially modified gaussian in
-                            the retention time domain. Must be greater than 0.
-                            Increasing K results in more heavily tailed
-                            chromatographic peaks. This parameter is inactive
-                            unless --rt_peak_model is not set to
-                            exponentially_modified_gaussian.
-      --prob_missing_in_sample PROB_MISSING_IN_SAMPLE
-                            Probability (0-100) that a peptide is missing in any
-                            given sample
-      --prob_missing_in_group PROB_MISSING_IN_GROUP
-                            Probability (0-100) that a peptide is missing in an
-                            entire group
+      Simulation:
+        --ms1_min_peak_intensity MS1_MIN_PEAK_INTENSITY
+                              Peptide elution profiles are simulated as gaussian peaks. This value sets the
+                              minimum gaussian curve intensitiy for a peptide to be simulated in MS1
+                              spectra.
+        --ms2_min_peak_intensity MS2_MIN_PEAK_INTENSITY
+                              Peptide elution profiles are simulated as gaussian peaks. This value sets the
+                              minimum gaussian curve intensitiy for a peptide to be simulated in MS2
+                              spectra.
+        --centroid_ms1        If given, simulated MS1 mass spectra will be centroided. Otherwise, profile
+                              data will be written.
+        --centroid_ms2        If given, simulated MS2 mass spectra will be centroided. Otherwise, profile
+                              data will be written.
+        --write_empty_spectra
+                              Write empty mass sepctra to the output data file
+        --mz_peak_model MZ_PEAK_MODEL
+                              The model used to simulate mass spectral peaks. Can be "gaussian",
+                              "exponentially_modified_gaussian" or "cauchy"
+        --rt_peak_model RT_PEAK_MODEL
+                              The model used to simulate chromatographic peaks. Can be "gaussian",
+                              "exponentially_modified_gaussian" or "cauchy"
+        --mz_emg_k MZ_EMG_K   Shape factor for exponentially modified gaussian in the mass spectral domain.
+                              Must be greater than 0. Increasing K results in more heavily tailed mass
+                              spectral peaks. This parameter is inactive unless --mz_peak_model is not set
+                              to exponentially_modified_gaussian.
+        --rt_emg_k RT_EMG_K   Shape factor for exponentially modified gaussian in the retention time
+                              domain. Must be greater than 0. Increasing K results in more heavily tailed
+                              chromatographic peaks. This parameter is inactive unless --rt_peak_model is
+                              not set to exponentially_modified_gaussian.
+        --prob_missing_in_sample PROB_MISSING_IN_SAMPLE
+                              Probability (0-100) that a peptide is missing in any given sample
+        --prob_missing_in_group PROB_MISSING_IN_GROUP
+                              Probability (0-100) that a peptide is missing in an entire group
+        --no_isotopes         Disable simulation of non-monoisotopic ions. Can be used to increase
+                              simulation speed when optimising parameters.
 
-    Plotting:
-      --tic                 Plot TIC for the generated mzML file.
-      --schema              Plot acquisition schema.
-      --all                 Plot all graphics.
+      Plotting:
+        --tic                 Plot TIC for the generated mzML file.
+        --schema              Plot acquisition schema.
+        --all                 Plot all graphics.
 
-    Grouping and quantitation:
-      --n_groups N_GROUPS   Number of treatment groups to simulate.
-      --samples_per_group SAMPLES_PER_GROUP
-                            Number of individual samples to simulate per treatment
-                            group.
-      --between_group_stdev BETWEEN_GROUP_STDEV
-                            Standard deviation of a normal distribution from which
-                            group means will be drawn.
-      --within_group_stdev WITHIN_GROUP_STDEV
-                            Standard deviation of a normal distribution from which
-                            within group samples will be drawn.
+      Grouping and quantitation:
+        --n_groups N_GROUPS   Number of treatment groups to simulate.
+        --samples_per_group SAMPLES_PER_GROUP
+                              Number of individual samples to simulate per treatment group.
+        --between_group_stdev BETWEEN_GROUP_STDEV
+                              Standard deviation of a normal distribution from which group means will be
+                              drawn.
+        --within_group_stdev WITHIN_GROUP_STDEV
+                              Standard deviation of a normal distribution from which within group samples
+                              will be drawn.
 
-    Decoys:
-      --decoy_msp_file DECOY_MSP_FILE
-                            Path to MSP file. Note - must include retention times.
-      --num_decoys NUM_DECOYS
-                            Number of decoy peaks to simulate
-      --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
-                            Simulate n most intense fragments of the decoy
-                            compound.
-      --decoy_abundance_mean DECOY_ABUNDANCE_MEAN
-                            Mean log2 abundance used to simulate decoy ion
-                            abundances.
-      --decoy_abundance_stdev DECOY_ABUNDANCE_STDEV
-                            Standard deviation of gaussian used to simulate decoy
-                            ion abundances.
+      Decoys:
+        --decoy_msp_file DECOY_MSP_FILE
+                              Path to MSP file. Note - must include retention times.
+        --num_decoys NUM_DECOYS
+                              Number of decoy peaks to simulate
+        --simulate_top_n_decoy_fragments SIMULATE_TOP_N_DECOY_FRAGMENTS
+                              Simulate n most intense fragments of the decoy compound.
+        --decoy_abundance_mean DECOY_ABUNDANCE_MEAN
+                              Mean log2 abundance used to simulate decoy ion abundances.
+        --decoy_abundance_stdev DECOY_ABUNDANCE_STDEV
+                              Standard deviation of gaussian used to simulate decoy ion abundances.
 
-    Preview:
-      --preview             Simulate a single peptide without a Prosit/MaxQuant
-                            file. Useful for testing parameter sets.
-      --preview_sequence PREVIEW_SEQUENCE
-                            Primary sequence of peptide to preview.
-      --preview_charge PREVIEW_CHARGE
-                            Charge of intact peptide to preview.
-      --preview_abundance PREVIEW_ABUNDANCE
-                            Abundance of peptide to simulate
+      Preview:
+        --preview             Simulate a single peptide without a Prosit/MaxQuant file. Useful for testing
+                              parameter sets.
+        --preview_sequence PREVIEW_SEQUENCE
+                              Primary sequence of peptide to preview.
+        --preview_charge PREVIEW_CHARGE
+                              Charge of intact peptide to preview.
+        --preview_abundance PREVIEW_ABUNDANCE
+                              Abundance of peptide to simulate
+
 
 
 ## Viewing mzML files
