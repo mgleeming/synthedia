@@ -17,9 +17,9 @@ def main(args = None):
                         help = 'The model from which log2 abundance values are drawn to generate abundances for prosit precursors. Can be "gaussian", "exponentially_modified_gaussian" or "cauchy". Not used for MaxQuant input types.')
     io_args.add_argument( '--prosit_peptide_abundance_mean', required = False, type = float, default = 22,
                         help = 'Mean log2 abundance used to simulate peptide abundances for prosit input types. Not used for MaxQuat input types.')
-    io_args.add_argument( '--prosit_peptide_abundance_stdev', required = False, type = float, default = 3,
+    io_args.add_argument( '--prosit_peptide_abundance_stdev', required = False, type = float, default = 1.4,
                         help = 'Standard deviation of gaussian used to simulate peptide abundances for prosit input types. Not used for MaxQuant input types.')
-    io_args.add_argument( '--prosit_peptide_abundance_emg_k', required = False, type = float, default = 3,
+    io_args.add_argument( '--prosit_peptide_abundance_emg_k', required = False, type = float, default = 1,
                         help = 'Shape factor for exponentially modified gaussian from which peptide abundances are drawn for prosit input types. Must be greater than 0. Increasing this value results in a more heavily tailed distribution resulting in more peptides higher intensities. Not used for MaxQuant input types')
     io_args.add_argument( '--acquisition_schema', required = False, type = str,
                         help = 'Path to file defining MS2 acquisition schema.')
@@ -87,7 +87,7 @@ def main(args = None):
                         help = 'Chromatographic peak full with at half maximum intehsity in seconds. If --rt_peak_fwhm_stdev is non-zero, this value is the mean of a Gaussian distribution from which FWHMs for individual peptides are drawn')
     chromatography_args.add_argument( '--rt_peak_fwhm_distribution_stdev', required = False, type = float, default = 1,
                         help = 'Standard deviation of a Gaussian distribution from which chromatographic peak full with at half maximum intehsity are drawn for indifivual peptides.')
-    chromatography_args.add_argument( '--rt_peak_fwhm_distribution_emg_k', required = False, type = float, default = 3,
+    chromatography_args.add_argument( '--rt_peak_fwhm_distribution_emg_k', required = False, type = float, default = 1,
                         help = 'Shape factor for exponentially modified gaussian from which peak FWHMs are drawn. Must be greater than 0. Increasing this value results in a more heavily tailed distribution resulting in more peptides with broad chromatographic profiles')
     chromatography_args.add_argument( '--min_rt_peak_fwhm', required = False, type = float, default = 1,
                         help = 'Minimum chromatographic peak full with at half maximum intehsity in seconds.')

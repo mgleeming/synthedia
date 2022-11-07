@@ -344,14 +344,17 @@ class SyntheticPeptide():
 
     def scale_retention_times(self, options):
 
-        self.scaled_base_rt = self.rt / options.original_run_length * options.new_run_length
+        original_run_length_with_buffer = options.original_run_length + (options.rt_buffer * 2 * 60)
+
+        self.scaled_base_rt = self.rt / original_run_length_with_buffer * options.new_run_length
         self.scaled_rt_lists = []
 
         for group in range(options.n_groups):
             self.scaled_rt_lists.append([])
             for sample in range(options.samples_per_group):
                 sample_rt = self.rt - random.randint(0, options.rt_instability * 10000) / 10000
-                self.scaled_rt_lists[-1].append( sample_rt / options.original_run_length * options.new_run_length )
+                self.scaled_rt_lists[-1].append( sample_rt / original_run_length_with_buffer * options.new_run_length )
+
         return
 
     def set_abundances(self):
