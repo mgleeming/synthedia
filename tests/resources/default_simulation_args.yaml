@@ -69,3 +69,4 @@ preview: false
 preview_abundance: 1000000
 preview_charge: 2
 preview_sequence: AAAAAAAAAAAAAAAAAAA
+version: false

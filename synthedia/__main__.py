@@ -1,6 +1,7 @@
 import os, sys, argparse, yaml
 import multiprocessing
 from synthedia import assembly
+from synthedia import __version__
 
 def main(args = None):
 
@@ -35,6 +36,8 @@ def main(args = None):
                         help = 'Do not print logging output to terminal')
     io_args.add_argument( '--write_params', action = 'store_true',
                         help = 'Write parameters to yaml file and exit.')
+    io_args.add_argument( '--version', action = 'store_true',
+                        help = 'Print package version and exit.')
 
     filtering_args = parser.add_argument_group("Filtering")
     filtering_args.add_argument( '--mq_pep_threshold', required = False, type = float, default = 0.001,
@@ -168,6 +171,10 @@ def main(args = None):
 
     options =  parser.parse_args()
 
+    if options.version:
+        print(__version__)
+        sys.exit()
+
     try:
         os.makedirs(options.out_dir)
     except:
@@ -198,6 +205,7 @@ def main(args = None):
         options = Options(options)
 
     assembly.assemble(options)
+
 
 class Options():
     def __init__(self, d):
