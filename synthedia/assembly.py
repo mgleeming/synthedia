@@ -3,12 +3,15 @@ import random, math, datetime, logging
 import pandas as pd
 import numpy as np
 
+import synthedia
+
 from . import plotting
 from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths, calculate_feature_windows
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 from .io import InputReader, AcquisitionSchema
 from .preview import PreviewPeptide
+
 
 class NoPeptidesToSimulateError(Exception):
     pass
@@ -376,7 +379,8 @@ def assemble(options):
     logger = configure_logging(options)
 
     start = datetime.datetime.now()
-    logger.info('Started Synthedia %s' % start)
+    logger.info('Started')
+    logger.info('Synthedia version %s' % synthedia.__version__)
 
     logger.info('Config args:')
     for k,v in options.__dict__.items():
