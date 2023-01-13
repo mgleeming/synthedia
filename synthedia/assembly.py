@@ -6,7 +6,7 @@ import numpy as np
 import synthedia
 
 from . import plotting
-from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_retention_lengths, calculate_feature_windows
+from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_feature_windows
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
 from .io import InputReader, AcquisitionSchema
@@ -25,6 +25,13 @@ class IncorrectInputError(Exception):
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
+    ms_rts = np.asarray([s.rt for s in spectra])
+    ids = np.asarray([s.synthedia_id for s in spectra])
+
+    # sort peptides by rt - longest rt first - shrtest rt last
+    peptides.sort(key=lambda p: p.scaled_rt_lists[groupi][samplei], reverse = True)
+
+    # create mz and intensity arrays - only used if profile mode
     MS1_MZS = np.arange(options.ms1_min_mz, options.ms1_max_mz, options.ms1_point_diff)
     MS1_INTS = np.zeros(len(MS1_MZS), dtype = int)
 
@@ -40,14 +47,11 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         len(spectra)
     )
 
-    min_rt = min([p.min_scaled_peak_rt_list[groupi][samplei] for p in peptides])
-    max_rt = max([p.max_scaled_peak_rt_list[groupi][samplei] for p in peptides])
+    min_rt = min([p.scaled_rt_lists[groupi][samplei] for p in peptides]) - options.rt_clip_window
+    max_rt = max([p.scaled_rt_lists[groupi][samplei] for p in peptides]) + options.rt_clip_window
 
-    return_peptides = []
+    peptide_subset, return_peptides = [], []
 
-    peptides.sort(key=lambda p: p.scaled_rt_lists[groupi][samplei], reverse = True)
-
-    peptide_subset = []
     for spectrumi, spectrum in enumerate(spectra):
 
         if (spectrum.rt < min_rt) or (spectrum.rt > max_rt):
@@ -61,22 +65,46 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         # make spec numpy arrays on the fly to save memory
         spectrum.make_spectrum(MS1_MZS, MS1_INTS, MS2_MZS, MS2_INTS)
 
-        while True:
-            if len(peptides) == 0: break
-            if spectrum.rt < peptides[-1].min_scaled_peak_rt_list[groupi][samplei]: break
-            if spectrum.rt >= peptides[-1].min_scaled_peak_rt_list[groupi][samplei]:
-                peptide_subset.append(peptides.pop())
+        # peptide subset list contains peptides with rt profiles overlapping with current spec
+        # first element of peptide subset is the earliest eluting peptide of the list
+        # last element of peptide subset is the latest eluting peptide of the list
 
+        # test for new peptides beginning to elute
         while True:
-            if len(peptide_subset) == 0: break
+            if len(peptides) == 0: break # nothing to do
+
+            # check the last element of peptide list (earliest eluting)
+            # if the earliest observation of this peptide is lower than current spec rt, move on
+            if spectrum.rt < peptides[-1].scaled_rt_lists[groupi][samplei] - options.rt_clip_window: break
+
+            # if the current spec rt has reached the earliest rt of the next peptide, add to active peptide subset
+            if spectrum.rt >= peptides[-1].scaled_rt_lists[groupi][samplei] - options.rt_clip_window:
+                peptide = peptides.pop()
+
+                # calculate lengths and indicies used to write elution data
+                peptide.calculate_retention_length(options, ms_rts, ids, groupi, samplei)
+
+                peptide_subset.append(peptide)
+
+        # test for existing peptides finished eluting
+        while True:
+            if len(peptide_subset) == 0: break # nothing to do
             if spectrum.rt <= peptide_subset[0].max_scaled_peak_rt_list[groupi][samplei]:
                 break
             if spectrum.rt > peptide_subset[0].max_scaled_peak_rt_list[groupi][samplei]:
-                return_peptides.append(peptide_subset.pop(0))
+                peptide = peptide_subset.pop(0)
+                peptide.clear_intensity_scale_factor_list_for_sample(groupi, samplei)
+                return_peptides.append(peptide)
 
         for p in peptide_subset:
 
+            # the use of rt_clip_window to activate peptides above is wider than actual peptide elution profiles
+            # - reduces memory footprint by allowing active peptide characteristics to be calculated as needed
+            # - need to filter to actual rt elution min/max
             if spectrum.rt > p.max_scaled_peak_rt_list[groupi][samplei]:
+                continue
+
+            if spectrum.rt < p.min_scaled_peak_rt_list[groupi][samplei]:
                 continue
 
             # skip missing peptides
@@ -421,8 +449,6 @@ def assemble(options):
     logger.info('Calculating feature windows')
     calculate_feature_windows(options, peptides, spectra)
 
-    logger.info('Calculating retention lengths')
-    peptides = calculate_retention_lengths(options, peptides, spectra)
     logger.info('Finished constructing peptide models')
 
     logger.info('Starting mzML file construction')

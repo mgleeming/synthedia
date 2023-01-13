@@ -161,6 +161,17 @@ class SyntheticPeptide():
             for samplei in range(options.samples_per_group):
                 self.min_peak_rt_list[groupi].append(None)
                 self.max_peak_rt_list[groupi].append(0)
+
+        self.min_scaled_peak_rt_list = []
+        self.max_scaled_peak_rt_list = []
+        self.intensity_scale_factor_list = []
+
+        for group in range(options.n_groups):
+
+            self.min_scaled_peak_rt_list.append([])
+            self.max_scaled_peak_rt_list.append([])
+            self.intensity_scale_factor_list.append([])
+
         return
 
     def get_min_peak_rt(self, group, sample):
@@ -377,75 +388,55 @@ class SyntheticPeptide():
 
         return
 
-    def calculate_retention_length(self, options, all_ms_rts, all_ids):
+    def calculate_retention_length(self, options, all_ms_rts, all_ids, group, sample):
 
-        self.min_scaled_peak_rt_list = []
-        self.max_scaled_peak_rt_list = []
-        self.intensity_scale_factor_list = []
+        # get rts within clip window
+        rt_mask = np.where(
+            (all_ms_rts > self.scaled_rt_lists[group][sample] - options.rt_clip_window)
+            &
+            (all_ms_rts < self.scaled_rt_lists[group][sample] + options.rt_clip_window)
+        )
 
-        for group in range(options.n_groups):
+        # subset of mass spectral rts in window
+        ms_rts = all_ms_rts[rt_mask]
 
-            self.min_scaled_peak_rt_list.append([])
-            self.max_scaled_peak_rt_list.append([])
-            self.intensity_scale_factor_list.append([])
+        # equivalent spectral index subset
+        ids_subset = all_ids[rt_mask]
 
-            for sample in range(options.samples_per_group):
+        # base peak model
+        model_ints = options.rt_peak_model(ms_rts, **{
+            'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
+        })
 
-                # get rts within clip window
-                rt_mask = np.where(
-                    (all_ms_rts > self.scaled_rt_lists[group][sample] - options.rt_clip_window)
-                    &
-                    (all_ms_rts < self.scaled_rt_lists[group][sample] + options.rt_clip_window)
-                )
+        # normalise so that max intensity is 1
+        model_ints = model_ints / max(model_ints)
 
-                # subset of mass spectral rts in window
-                ms_rts = all_ms_rts[rt_mask]
+        # multiply by peptide intensity
+        ints = self.intensity * model_ints
 
-                # equivalent spectral index subset
-                ids_subset = all_ids[rt_mask]
+        # mask of above threshold points
+        mask = np.where(ints > options.ms2_min_peak_intensity)
 
-                # base peak model
-                model_ints = options.rt_peak_model(ms_rts, **{
-                    'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
-                })
+        # rts of spectra above threshold
+        peak_rts = ms_rts[mask]
 
-                # normalise so that max intensity is 1
-                model_ints = model_ints / max(model_ints)
+        # equivalent mask of spectral indicies
+        ids_subset_2 = ids_subset[mask]
 
-                # multiply by peptide intensity
-                ints = self.intensity * model_ints
+        # base model intensities within threshold window
+        # -- used to derive intensity scale factors
+        model_ints = model_ints[mask]
 
-                # mask of above threshold points
-                mask = np.where(ints > options.ms2_min_peak_intensity)
+        self.min_scaled_peak_rt_list[group].append(min(peak_rts))
+        self.max_scaled_peak_rt_list[group].append(max(peak_rts))
 
-                # rts of spectra above threshold
-                peak_rts = ms_rts[mask]
-
-                # equivalent mask of spectral indicies
-                ids_subset_2 = ids_subset[mask]
-
-                # base model intensities within threshold window
-                # -- used to derive intensity scale factors
-                model_ints = model_ints[mask]
-
-                self.min_scaled_peak_rt_list[-1].append(min(peak_rts))
-                self.max_scaled_peak_rt_list[-1].append(max(peak_rts))
-
-                self.intensity_scale_factor_list[-1].append({ids_subset_2[i]:model_ints[i] for i in range(len(model_ints))})
+        self.intensity_scale_factor_list[group].append({ids_subset_2[i]:model_ints[i] for i in range(len(model_ints))})
 
         return
 
-def calculate_retention_lengths(options, peptides, spectra):
-
-    ms_rts = np.asarray([s.rt for s in spectra])
-    ids = np.asarray([s.synthedia_id for s in spectra])
-
-    assert len(ms_rts) == len(ids)
-
-    for p in peptides:
-        p.calculate_retention_length(options, ms_rts, ids)
-
-    return peptides
+    def clear_intensity_scale_factor_list_for_sample(self, group, sample):
+        self.intensity_scale_factor_list[group][sample] = None
+        return
 
 def calculate_scaled_retention_times(options, peptides):
 
