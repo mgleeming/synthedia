@@ -409,7 +409,7 @@ class SyntheticPeptide():
         })
 
         # normalise so that max intensity is 1
-        model_ints = model_ints / max(model_ints)
+        model_ints = model_ints / model_ints.max()
 
         # multiply by peptide intensity
         ints = self.intensity * model_ints

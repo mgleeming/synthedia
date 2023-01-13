@@ -189,11 +189,18 @@ class Spectrum():
         return
 
     def add_centroid_peaks(self, options, p, groupi, samplei):
-        peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
-        abundance_offset = p.offsets[groupi][samplei]
 
         # scaling factor for point on chromatogram
-        intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
+        try:
+            intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
+        except KeyError:
+            # the use of rt_clip_window to activate peptides above is wider than actual peptide elution profiles
+            # key won't be found in cases where spec rt is outside precise peak elution boundaries
+            # this was faster than explicitly checking in the populate_spectra function
+            return
+
+        peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
+        abundance_offset = p.offsets[groupi][samplei]
 
         # apply chromatographic instability if needed
         if options.esi_instability > 0:
@@ -236,11 +243,17 @@ class Spectrum():
 
     def add_profile_peaks(self, options, p, groupi, samplei):
 
+        # scaling factor for point on chromatogram
+        try:
+            intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
+        except KeyError:
+            # the use of rt_clip_window to activate peptides above is wider than actual peptide elution profiles
+            # key won't be found in cases where spec rt is outside precise peak elution boundaries
+            # this was faster than explicitly checking in the populate_spectra function
+            return
+
         peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
         abundance_offset = p.offsets[groupi][samplei]
-
-        # scaling factor for point on chromatogram
-        intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
 
         # apply chromatographic instability if needed
         if options.esi_instability > 0:

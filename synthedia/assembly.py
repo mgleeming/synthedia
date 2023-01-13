@@ -28,6 +28,14 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     ms_rts = np.asarray([s.rt for s in spectra])
     ids = np.asarray([s.synthedia_id for s in spectra])
 
+    min_rt = min([p.scaled_rt_lists[groupi][samplei] for p in peptides]) - options.rt_clip_window
+    max_rt = max([p.scaled_rt_lists[groupi][samplei] for p in peptides]) + options.rt_clip_window
+
+    # peptides missing in this file can be removed from consideration at the top
+    # saves time checking later
+    return_peptides = [p for p in peptides if p.found_in_sample[groupi][samplei] == 0]
+    peptides = [p for p in peptides if p.found_in_sample[groupi][samplei] != 0]
+
     # sort peptides by rt - longest rt first - shrtest rt last
     peptides.sort(key=lambda p: p.scaled_rt_lists[groupi][samplei], reverse = True)
 
@@ -47,10 +55,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         len(spectra)
     )
 
-    min_rt = min([p.scaled_rt_lists[groupi][samplei] for p in peptides]) - options.rt_clip_window
-    max_rt = max([p.scaled_rt_lists[groupi][samplei] for p in peptides]) + options.rt_clip_window
-
-    peptide_subset, return_peptides = [], []
+    peptide_subset = []
 
     for spectrumi, spectrum in enumerate(spectra):
 
@@ -98,24 +103,11 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
 
         for p in peptide_subset:
 
-            # the use of rt_clip_window to activate peptides above is wider than actual peptide elution profiles
-            # - reduces memory footprint by allowing active peptide characteristics to be calculated as needed
-            # - need to filter to actual rt elution min/max
-            if spectrum.rt > p.max_scaled_peak_rt_list[groupi][samplei]:
-                continue
-
-            if spectrum.rt < p.min_scaled_peak_rt_list[groupi][samplei]:
-                continue
-
-            # skip missing peptides
-            if (p.found_in_sample[groupi][samplei] == 0):
-                continue
-
-            if spectrum.order == 1:
-                spectrum.add_peaks(options, p, groupi, samplei)
-            elif spectrum.order == 2:
+            if spectrum.order == 2:
                 if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
                     spectrum.add_peaks(options, p, groupi, samplei)
+            elif spectrum.order == 1:
+                spectrum.add_peaks(options, p, groupi, samplei)
 
         # write final spec to file
         run.write_spec(options, spectrum)
