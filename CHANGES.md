@@ -1,3 +1,7 @@
+## v1.0.3
+- Reduced memory footprint
+- Speed improvements
+
 ## v1.0.2
 - Added single-peptide command-line preview functions to quickly test parameter sets
 - Added additional metadata to mzml scan headers
