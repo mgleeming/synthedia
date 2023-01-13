@@ -422,7 +422,10 @@ def assemble(options):
     calculate_feature_windows(options, peptides, spectra)
 
     logger.info('Calculating retention lengths')
+    t1 = time.time()
     peptides = calculate_retention_lengths(options, peptides, spectra)
+    t2 = time.time()
+    print(t2 - t1)
     logger.info('Finished constructing peptide models')
 
     logger.info('Starting mzML file construction')

@@ -1,6 +1,8 @@
-import math, random, sys, copy
+import math, random, sys, copy, logging, multiprocessing, time
 import numpy as np
 from pyteomics import mass, fasta
+from itertools import repeat
+from functools import partial
 
 # constants
 PROTON = 1.007276
@@ -435,6 +437,24 @@ class SyntheticPeptide():
 
         return
 
+def run_length_calculation(options, ms_rts, ids, peptide_subset, worker_id):
+
+    logger = logging.getLogger("assembly_logger")
+    logger.info('\tStarted: worker %s' %(
+        worker_id
+    ))
+
+    for i, p in enumerate(peptide_subset):
+
+        if i % 50 == 0:
+            logger.info('\tCalculating retention length: worker %s, peptide %s of %s' %(
+                worker_id, i, len(peptide_subset)
+            ))
+
+        p.calculate_retention_length(options, ms_rts, ids)
+
+    return peptide_subset
+
 def calculate_retention_lengths(options, peptides, spectra):
 
     ms_rts = np.asarray([s.rt for s in spectra])
@@ -444,6 +464,32 @@ def calculate_retention_lengths(options, peptides, spectra):
 
     for p in peptides:
         p.calculate_retention_length(options, ms_rts, ids)
+
+    if options.num_processors == 1:
+        peptides = run_length_calculation(options, ms_rts, ids, peptides, 0)
+
+    else:
+        pool = multiprocessing.Pool(processes = options.num_processors)
+
+        # split work into equal sized lists
+        arg_sets = [[] for _ in range(options.num_processors)]
+        counter = 0
+        for p in peptides:
+            arg_sets[counter].append(p)
+            counter += 1
+            if counter == options.num_processors:
+                counter = 0
+
+        func = partial(run_length_calculation, options, ms_rts, ids)
+
+        # send work to procs and collect results
+        peptides = []
+        args = zip(arg_sets, list(range(options.num_processors)))
+        for _ in pool.starmap(func, args):
+            peptides.extend(list(_))
+
+        pool.close()
+        pool.join()
 
     return peptides
 

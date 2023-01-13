@@ -158,8 +158,18 @@ class AcquisitionSchema (object):
                 synthedia_id_counter += 1
         return spectra
 
-def simulate_isotope_patterns(options, peptide_subset):
-    for p in peptide_subset:
+def simulate_isotope_patterns(options, peptide_subset, worker_id):
+    logger = logging.getLogger("assembly_logger")
+    logger.info('\tStarted: worker %s' %(
+        worker_id
+    ))
+    for i, p in enumerate(peptide_subset):
+
+        if i % 50 == 0:
+            logger.info('\tSimulating isotopes patterns: worker %s, peptide %s of %s' %(
+                worker_id, i, len(peptide_subset)
+            ))
+
         p.get_ms1_isotope_pattern(options)
     return peptide_subset
 
@@ -211,8 +221,8 @@ class InputReader (object):
 
             logger.info('Simulating isotope patterns')
             if options.num_processors == 1:
-                for p in self.peptides:
-                    p.get_ms1_isotope_pattern(options)
+                self.peptides = simulate_isotope_patterns(options, self.peptides, 0)
+
             else:
                 pool = multiprocessing.Pool(processes = options.num_processors)
 
@@ -227,7 +237,7 @@ class InputReader (object):
 
                 # send work to procs and collect results
                 self.peptides = []
-                for _ in pool.starmap(simulate_isotope_patterns, zip(repeat(options), arg_sets)):
+                for _ in pool.starmap(simulate_isotope_patterns, zip(repeat(options), arg_sets, list(range(options.num_processors)))):
                     self.peptides.extend(list(_))
 
                 pool.close()
