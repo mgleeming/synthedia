@@ -31,11 +31,6 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
     min_rt = min([p.scaled_rt_lists[groupi][samplei] for p in peptides]) - options.rt_clip_window
     max_rt = max([p.scaled_rt_lists[groupi][samplei] for p in peptides]) + options.rt_clip_window
 
-    # peptides missing in this file can be removed from consideration at the top
-    # saves time checking later
-    return_peptides = [p for p in peptides if p.found_in_sample[groupi][samplei] == 0]
-    peptides = [p for p in peptides if p.found_in_sample[groupi][samplei] != 0]
-
     # sort peptides by rt - longest rt first - shrtest rt last
     peptides.sort(key=lambda p: p.scaled_rt_lists[groupi][samplei], reverse = True)
 
@@ -55,6 +50,7 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
         len(spectra)
     )
 
+    return_peptides = []
     peptide_subset = []
 
     for spectrumi, spectrum in enumerate(spectra):

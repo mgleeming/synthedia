@@ -350,11 +350,21 @@ def test_missing_in_group():
 
 def test_missing_in_sample():
     create_test_dir()
-    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 100, 'prob_missing_in_sample': 0})
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 0, 'prob_missing_in_sample': 100})
     assembly.assemble(options)
     start, end = get_target_peak_retention_boundaries()
     assert np.isclose(start, 0)
     assert np.isclose(end, 0)
+
+def test_missing_in_group_multiple_files():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 100, 'n_groups': 3, 'samples_per_group': 3})
+    assembly.assemble(options)
+
+def test_missing_in_sample_multiple_files():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 0, 'prob_missing_in_sample': 100, 'n_groups': 3, 'samples_per_group': 3})
+    assembly.assemble(options)
 
 def test_max_fragment_intensity():
     create_test_dir()

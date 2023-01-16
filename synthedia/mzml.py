@@ -196,6 +196,7 @@ class Spectrum():
     def add_centroid_peaks(self, options, p, groupi, samplei):
         # scaling factor for point on chromatogram
         try:
+#            print(len(p.intensity_scale_factor_list[groupi]), len(p.intensity_scale_factor_list[groupi]), groupi, samplei)
             intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]
         except KeyError:
             # the use of rt_clip_window to activate peptides above is wider than actual peptide elution profiles

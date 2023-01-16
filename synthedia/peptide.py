@@ -390,47 +390,55 @@ class SyntheticPeptide():
 
     def calculate_retention_length(self, options, all_ms_rts, all_ids, group, sample):
 
-        # get rts within clip window
-        rt_mask = np.where(
-            (all_ms_rts > self.scaled_rt_lists[group][sample] - options.rt_clip_window)
-            &
-            (all_ms_rts < self.scaled_rt_lists[group][sample] + options.rt_clip_window)
-        )
+        # in the case of a missing peptide, dummy values are needed to preserve indexing for subsequent files
+        if self.found_in_sample[group][sample] == 0:
+            self.min_scaled_peak_rt_list[group].append(-1)
+            self.max_scaled_peak_rt_list[group].append(-1)
+            self.intensity_scale_factor_list[group].append({})
 
-        # subset of mass spectral rts in window
-        ms_rts = all_ms_rts[rt_mask]
+        else:
+            # get rts within clip window
+            rt_mask = np.where(
+                (all_ms_rts > self.scaled_rt_lists[group][sample] - options.rt_clip_window)
+                &
+                (all_ms_rts < self.scaled_rt_lists[group][sample] + options.rt_clip_window)
+            )
 
-        # equivalent spectral index subset
-        ids_subset = all_ids[rt_mask]
+            # subset of mass spectral rts in window
+            ms_rts = all_ms_rts[rt_mask]
 
-        # base peak model
-        model_ints = options.rt_peak_model(ms_rts, **{
-            'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
-        })
+            # equivalent spectral index subset
+            ids_subset = all_ids[rt_mask]
 
-        # normalise so that max intensity is 1
-        model_ints = model_ints / model_ints.max()
+            # base peak model
+            model_ints = options.rt_peak_model(ms_rts, **{
+                'mu': self.scaled_rt_lists[group][sample], 'sig': self.peptide_rt_stdev, 'emg_k': options.rt_emg_k
+            })
 
-        # multiply by peptide intensity
-        ints = self.intensity * model_ints
+            # normalise so that max intensity is 1
+            model_ints = model_ints / model_ints.max()
 
-        # mask of above threshold points
-        mask = np.where(ints > options.ms2_min_peak_intensity)
+            # multiply by peptide intensity
+            ints = self.intensity * model_ints
 
-        # rts of spectra above threshold
-        peak_rts = ms_rts[mask]
+            # mask of above threshold points
+            mask = np.where(ints > options.ms2_min_peak_intensity)
 
-        # equivalent mask of spectral indicies
-        ids_subset_2 = ids_subset[mask]
+            # rts of spectra above threshold
+            peak_rts = ms_rts[mask]
 
-        # base model intensities within threshold window
-        # -- used to derive intensity scale factors
-        model_ints = model_ints[mask]
+            # equivalent mask of spectral indicies
+            ids_subset_2 = ids_subset[mask]
 
-        self.min_scaled_peak_rt_list[group].append(min(peak_rts))
-        self.max_scaled_peak_rt_list[group].append(max(peak_rts))
+            # base model intensities within threshold window
+            # -- used to derive intensity scale factors
+            model_ints = model_ints[mask]
 
-        self.intensity_scale_factor_list[group].append({ids_subset_2[i]:model_ints[i] for i in range(len(model_ints))})
+            self.min_scaled_peak_rt_list[group].append(min(peak_rts))
+            self.max_scaled_peak_rt_list[group].append(max(peak_rts))
+            self.intensity_scale_factor_list[group].append(
+                {ids_subset_2[i]:model_ints[i] for i in range(len(model_ints))}
+            )
 
         return
 
