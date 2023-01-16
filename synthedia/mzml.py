@@ -66,6 +66,7 @@ class MZMLWriter():
         self.n_spec_written = 1
         return
 
+#    @profile
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
@@ -156,6 +157,11 @@ class Spectrum():
         if options.centroid_ms2 and (self.order == 2):
             self.centroid = True
 
+        if options.esi_instability > 0:
+            self.esi_instability_factor = 1 - ( random.randint(0,options.esi_instability * 100) / 10000 )
+        else:
+            self.esi_instability_factor = 1
+
         if isolation_range:
             self.isolation_ll = isolation_range[0]
             self.isolation_hl = isolation_range[1]
@@ -188,6 +194,7 @@ class Spectrum():
             self.add_profile_peaks(options, p, groupi, samplei)
         return
 
+#    @profile
     def add_centroid_peaks(self, options, p, groupi, samplei):
 
         # scaling factor for point on chromatogram
@@ -202,10 +209,11 @@ class Spectrum():
         peptide_scaled_rt = p.scaled_rt_lists[groupi][samplei]
         abundance_offset = p.offsets[groupi][samplei]
 
+        # abundance offsets are defined in log2 terms, convert to raw intensity
+        raw_abundance_offset = 2**abundance_offset
+
         # apply chromatographic instability if needed
-        if options.esi_instability > 0:
-            instability_factor = 1 - ( random.randint(0,options.esi_instability * 100) / 10000 )
-            intensity_scale_factor *= instability_factor
+        intensity_scale_factor *= self.esi_instability_factor
 
         if self.order == 1:
             peaks = p.ms1_isotopes
@@ -214,30 +222,31 @@ class Spectrum():
             peaks = p.ms2_peaks
             min_peak_intensity = options.ms2_min_peak_intensity
 
+        total_abundance_offset = raw_abundance_offset * intensity_scale_factor
+
         for peaki, peak in enumerate(peaks):
-            log_int = math.log2(peak.intensity)
-            adjusted_log2_int = log_int + abundance_offset
-            adjusetd_raw_int = 2 ** adjusted_log2_int
-            peak_int = adjusetd_raw_int * intensity_scale_factor
+
+            peak_int = peak.intensity * total_abundance_offset
+
             if peak_int > min_peak_intensity:
                 self.mzs.append(peak.peak_mz_list[groupi][samplei])
                 self.ints.append(peak_int)
 
-                # update peptide retention boundaries
-                if peaki == 0:
-                    p.update_peptide_retention_times(self.rt, groupi, samplei)
-
                 # track peak intensities
-                if self.order == 1:
-                    peak.update_ms1_intensities_to_report(groupi, samplei, peak_int)
-                elif self.order == 2:
+                if self.order == 2:
                     if p.max_fragment_index == peaki:
                         peak.update_fragment_intensities_to_report(groupi, samplei, peak_int)
 
-                # in the case of MS1 spectra - increment only for one isotope
-                # in the case of MS2 spectra - increment only for one fragment
+                elif self.order == 1:
+                    peak.update_ms1_intensities_to_report(groupi, samplei, peak_int)
+
                 if peaki == 0:
+                    # in the case of MS1 spectra - increment only for one isotope
+                    # in the case of MS2 spectra - increment only for one fragment
                     p.increment_points_per_peak_dict(groupi, samplei, self.order)
+
+                    # update peptide retention boundaries
+                    p.update_peptide_retention_times(self.rt, groupi, samplei)
 
         return
 
@@ -256,9 +265,7 @@ class Spectrum():
         abundance_offset = p.offsets[groupi][samplei]
 
         # apply chromatographic instability if needed
-        if options.esi_instability > 0:
-            instability_factor = 1 - ( random.randint(0,options.esi_instability * 100) / 10000 )
-            intensity_scale_factor *= instability_factor
+        intensity_scale_factor *= self.esi_instability_factor
 
         if self.order == 1:
             peaks = p.ms1_isotopes
@@ -302,8 +309,6 @@ class Spectrum():
                 if max(peak_ints) > 0:
                     p.increment_points_per_peak_dict(groupi, samplei, self.order)
 
-            # update peptide retention boundaries
-            if peaki == 0:
                 if max(peak_ints) > min_peak_intensity:
                     p.update_peptide_retention_times(self.rt, groupi, samplei)
 
@@ -312,11 +317,11 @@ class Spectrum():
             peak_ints[int_mask] = 0
 
             # track peak intensities
-            if self.order == 1:
-                peak.update_ms1_intensities_to_report(groupi, samplei, peak_ints)
-            elif self.order == 2:
+            if self.order == 2:
                 if p.max_fragment_index == peaki:
                     peak.update_fragment_intensities_to_report(groupi, samplei, peak_ints)
+            elif self.order == 1:
+                peak.update_ms1_intensities_to_report(groupi, samplei, peak_ints)
 
             # add new data to full spectrum intensity
             self.ints[lower_limit:higher_limit] += peak_ints

@@ -22,6 +22,7 @@ class AcquisitionSchemaError(Exception):
 class IncorrectInputError(Exception):
     pass
 
+#@profile
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
@@ -101,12 +102,17 @@ def populate_spectra(options, peptides, spectra, groupi, samplei):
                 peptide.clear_intensity_scale_factor_list_for_sample(groupi, samplei)
                 return_peptides.append(peptide)
 
-        for p in peptide_subset:
+        spectrum_order = spectrum.order
 
-            if spectrum.order == 2:
-                if (p.mz > spectrum.isolation_ll) and (p.mz < spectrum.isolation_hl):
-                    spectrum.add_peaks(options, p, groupi, samplei)
-            elif spectrum.order == 1:
+        if spectrum.order == 1:
+            # ms1 spec - write all active peptdes
+            for p in peptide_subset:
+                spectrum.add_peaks(options, p, groupi, samplei)
+
+        if spectrum.order == 2:
+            # filter active peptides to only those with intact m/z within iso window
+            peptides_in_window = [p for p in peptide_subset if p.mz > spectrum.isolation_ll if p.mz < spectrum.isolation_hl]
+            for p in peptides_in_window:
                 spectrum.add_peaks(options, p, groupi, samplei)
 
         # write final spec to file
