@@ -66,7 +66,6 @@ class MZMLWriter():
         self.n_spec_written = 1
         return
 
-#    @profile
     def write_spec(self, options, spec):
         spec_to_write = MSSpectrum()
 
@@ -194,9 +193,7 @@ class Spectrum():
             self.add_profile_peaks(options, p, groupi, samplei)
         return
 
-#    @profile
     def add_centroid_peaks(self, options, p, groupi, samplei):
-
         # scaling factor for point on chromatogram
         try:
             intensity_scale_factor = p.intensity_scale_factor_list[groupi][samplei][self.synthedia_id]

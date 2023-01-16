@@ -22,7 +22,6 @@ class AcquisitionSchemaError(Exception):
 class IncorrectInputError(Exception):
     pass
 
-#@profile
 def populate_spectra(options, peptides, spectra, groupi, samplei):
     logger = logging.getLogger("assembly_logger")
 
