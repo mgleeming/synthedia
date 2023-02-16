@@ -1,6 +1,7 @@
 ## v1.0.3
 - Reduced memory footprint
 - Speed improvements
+- Added ```--select_n``` argument to simulate a random subset of input peptides
 
 ## v1.0.2
 - Added single-peptide command-line preview functions to quickly test parameter sets
