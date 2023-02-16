@@ -30,6 +30,8 @@ def main(args = None):
                         help = 'Output directory where results should be written.')
     io_args.add_argument( '--output_label', required = False, type = str, default = 'output',
                         help = 'Prefix for output files.')
+    io_args.add_argument( '--select_n', required = False, type = int,
+                        help = 'Select n peptides to simulate from the input files. If decoys are specified, n will be the total of decoys and peptides. This option has no effect if --use_existing_peptide_file is specified.')
     io_args.add_argument( '--config', required = False, type = str, default = None,
                         help = 'Path to *.yaml config file.')
     io_args.add_argument( '--silent', action= 'store_true',

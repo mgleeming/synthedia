@@ -48,7 +48,7 @@ rt_instability: 15
 rt_peak_fwhm_distribution_model: exponentially_modified_gaussian
 rt_peak_fwhm_distribution_mean: 7
 rt_peak_fwhm_distribution_stdev: 0.3
-rt_peak_fwhm_distribution_emg_k: 3 
+rt_peak_fwhm_distribution_emg_k: 3
 min_rt_peak_fwhm: 1
 rt_peak_model: exponentially_modified_gaussian
 samples_per_group: 1
@@ -56,6 +56,7 @@ schema: false
 simulate_top_n_decoy_fragments: 15
 tic: false
 use_existing_peptide_file: null
+select_n: null
 within_group_stdev: 0.2
 write_empty_spectra: false
 ms1_ppm_error_mean: 0

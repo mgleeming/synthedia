@@ -209,6 +209,10 @@ class InputReader (object):
                     decoys = self.read_decoys_from_msp(options, self.peptides)
                     self.peptides = self.peptides + decoys
 
+            if options.select_n:
+                logger.info('Randomly selecting %s peptides' % options.select_n)
+                self.peptides = random.sample(self.peptides, options.select_n)
+
             logger.info('Simulating isotope patterns')
             if options.num_processors == 1:
                 for p in self.peptides:
