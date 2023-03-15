@@ -128,11 +128,19 @@ class MZMLWriter():
 
         spec_to_write.setInstrumentSettings( instrument_settings)
 
-        spec_to_write.setMetaValue('lowest observed m/z', min(mzs))
-        spec_to_write.setMetaValue('highest observed m/z', max(mzs))
-        spec_to_write.setMetaValue('base peak intensity', max(ints))
-        spec_to_write.setMetaValue('base peak m/z', mzs[np.argmax(ints)])
-        spec_to_write.setMetaValue('total ion current', sum(ints))
+        if len(mzs) > 0:
+            # this happens if an empty spectrum is written when --write_empty_spectra is set
+            spec_to_write.setMetaValue('lowest observed m/z', min(mzs))
+            spec_to_write.setMetaValue('highest observed m/z', max(mzs))
+            spec_to_write.setMetaValue('base peak intensity', max(ints))
+            spec_to_write.setMetaValue('base peak m/z', mzs[np.argmax(ints)])
+            spec_to_write.setMetaValue('total ion current', sum(ints))
+        else:
+            spec_to_write.setMetaValue('lowest observed m/z', 0)
+            spec_to_write.setMetaValue('highest observed m/z', 0)
+            spec_to_write.setMetaValue('base peak intensity', 0)
+            spec_to_write.setMetaValue('base peak m/z', 0)
+            spec_to_write.setMetaValue('total ion current', 0)
 
         self.consumer.consumeSpectrum(spec_to_write)
         self.n_spec_written += 1

@@ -171,6 +171,12 @@ def test_no_peptides():
         options = update_param({'mq_txt_dir': TEST_RESOURCES, 'ms1_max_mz': 500})
         assembly.assemble(options)
 
+def test_empty_spec():
+    create_test_dir()
+    options = update_param({'mq_txt_dir': TEST_RESOURCES, 'write_empty_spectra': True})
+    assembly.assemble(options)
+    check_files()
+
 def test_prosit_centroid_ms1():
     create_test_dir()
     options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True})
