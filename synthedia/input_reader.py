@@ -4,6 +4,7 @@ import numpy as np
 from .peptide import SyntheticPeptide
 from .mzml import Spectrum
 from itertools import repeat
+from .peptide import get_isotope_pattern
 
 class NoPeptidesToSimulateError(Exception):
     pass
@@ -214,28 +215,35 @@ class InputReader (object):
                 self.peptides = random.sample(self.peptides, options.select_n)
 
             logger.info('Simulating isotope patterns')
+            # get list of unique sequences
+            unique_sequences = list(set([p.sequence for p in self.peptides if p.decoy == False]))
+
             if options.num_processors == 1:
-                for p in self.peptides:
-                    p.get_ms1_isotope_pattern(options)
+                isotope_pattern_dict = get_isotope_pattern(options, unique_sequences)
             else:
+                # create pool
                 pool = multiprocessing.Pool(processes = options.num_processors)
 
                 # split work into equal sized lists
                 arg_sets = [[] for _ in range(options.num_processors)]
                 counter = 0
-                for p in self.peptides:
-                    arg_sets[counter].append(p)
+                for seq in unique_sequences:
+                    arg_sets[counter].append(seq)
                     counter += 1
                     if counter == options.num_processors:
                         counter = 0
 
                 # send work to procs and collect results
-                self.peptides = []
-                for _ in pool.starmap(simulate_isotope_patterns, zip(repeat(options), arg_sets)):
-                    self.peptides.extend(list(_))
-
+                isotope_pattern_dict = {}
+                for _ in pool.starmap(get_isotope_pattern, zip(repeat(options), arg_sets)):
+                    isotope_pattern_dict.update(_)
                 pool.close()
                 pool.join()
+
+            assert len(isotope_pattern_dict) == len(unique_sequences)
+
+            for p in self.peptides:
+                p.get_ms1_isotope_pattern(options, isotope_pattern_dict)
 
         if len(self.peptides) == 0:
             msg = 'No peptides or decoys created - Nothing to simulate!'

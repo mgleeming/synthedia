@@ -9,7 +9,7 @@ from . import plotting
 from .peptide import SyntheticPeptide, calculate_scaled_retention_times, calculate_feature_windows
 from .mzml import Spectrum, MZMLWriter, MZMLReader
 from .peak_models import PeakModels
-from .io import InputReader, AcquisitionSchema
+from .input_reader import InputReader, AcquisitionSchema
 from .preview import PreviewPeptide
 
 

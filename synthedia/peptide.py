@@ -320,7 +320,7 @@ class SyntheticPeptide():
         self.msms_entry = msms_entry
         return
 
-    def get_ms1_isotope_pattern(self, options):
+    def get_ms1_isotope_pattern(self, options, isotope_pattern_dict):
         isotopes = []
         if self.decoy:
             for isotope_i, isotope in enumerate(mass.mass.isotopologues( formula = self.formula, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C'])):
@@ -335,7 +335,7 @@ class SyntheticPeptide():
                     break
 
         else:
-            for isotope_i, isotope in enumerate(mass.mass.isotopologues( sequence = self.sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C'])):
+            for isotope in isotope_pattern_dict[self.sequence]:
                 calc_mz = (isotope[0].mass() + (IAA * self.sequence.count('C')) +  (PROTON * self.charge)) / self.charge
                 isotopes.append(
                     Peak(
@@ -515,3 +515,17 @@ def calculate_feature_windows(options, peptides, spectra):
 
     options.ms_clip_window = max(peak_mzs) - min(peak_mzs)
     return
+
+def get_isotope_pattern(options, unique_sequences):
+    isotope_pattern_dict = {}
+    for sequence in unique_sequences:
+        isotopes = []
+        for isotope in mass.mass.isotopologues( sequence = sequence, report_abundance = True, overall_threshold = 0.01, elements_with_isotopes = ['C']):
+            isotopes.append(isotope)
+            # simulate only the first isotope for preview
+            if options.preview:
+                break
+            if options.no_isotopes:
+                break
+        isotope_pattern_dict[sequence] = isotopes
+    return isotope_pattern_dict
