@@ -315,7 +315,6 @@ def test_peptide_total_intensity():
     assembly.assemble(options)
     rts, intensity_sums, intensity_maxes = get_EIC_for_ms_lvl(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML'), target_lvl = 1)
     area, height = get_target_peak_area_and_height()
-
     assert abs (100 - sum(intensity_sums) /  area * 100) < 0.01
     assert abs (100 - max(intensity_maxes) / height * 100) < 0.01
 
@@ -368,9 +367,9 @@ def test_missing_in_group_multiple_files():
     assembly.assemble(options)
 
 def test_missing_in_sample_multiple_files():
-    create_test_dir()
-    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 0, 'prob_missing_in_sample': 100, 'n_groups': 3, 'samples_per_group': 3})
-    assembly.assemble(options)
+   create_test_dir()
+   options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'), 'centroid_ms1': True, 'prob_missing_in_group': 0, 'prob_missing_in_sample': 100, 'n_groups': 3, 'samples_per_group': 3})
+   assembly.assemble(options)
 
 def test_max_fragment_intensity():
     create_test_dir()

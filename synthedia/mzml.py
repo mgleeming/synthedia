@@ -292,8 +292,9 @@ class Spectrum():
             adjusted_log2_int = log_int + abundance_offset
             adjusetd_raw_int = 2 ** adjusted_log2_int
 
-            if not hasattr(peak, 'peak_intensities'):
-
+            try:
+                peak_ints = peak.get_peak_intensities( groupi, samplei )
+            except IndexError:
                 # calculating the peak for the full m/z range is slow
                 # subset data to only a small region around the peak to speed calculation
                 peak_ints = options.mz_peak_model(self.mzs[lower_limit:higher_limit], **{
