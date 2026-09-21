@@ -154,6 +154,10 @@ While we have endeavoured to provide a range of options that allow for simulatio
 
 As an example, Synthedia offers the capability to simulate the same set of precursors as if acquired on different length chromatographic gradients. This means that data acquired on a lengthy gradients could be reconstructed to approximate acquisition on shorter gradients. In these cases, Synthedia simply models spectra containing signals from many peptides as a simple superposition of their individual signals. In reality however, ion supression effects would result in data that may look substantially different from that which would be produced if a comparable experimental workflow were to be executed.
 
+### Marking files as simulated
+
+Because simulated mzML files are hard to tell apart from real ones once they leave the output directory, Synthedia can sign each output with [mzprov](https://github.com/mzprov/mzprov). Install the optional dependency with `pip install synthedia[mzprov]` and pass `--sign_with_mzprov` (or set `sign_with_mzprov: true` in the config file). Each `<name>.provenance.json` records that the file was produced by Synthedia, which version, and with which parameters and peptide table; `mzprov verify <name>.mzML` reports whether the spectra have changed since. The first run generates a local signing key.
+
 ### Post-translational modifications
 
 Synthedia currently has very limited support for simulating peptides with post-translational modifications. Currently, all cysteine residues are assumed to be modified by carbamidomethylation. No other post-translational modifications are supported.
@@ -226,7 +230,8 @@ A series of plots are generated in the directiry specified in ```--out_dir``` to
                  [--prosit_peptide_abundance_emg_k PROSIT_PEPTIDE_ABUNDANCE_EMG_K]
                  [--acquisition_schema ACQUISITION_SCHEMA]
                  [--use_existing_peptide_file USE_EXISTING_PEPTIDE_FILE] [--out_dir OUT_DIR]
-                 [--output_label OUTPUT_LABEL] [--config CONFIG] [--silent] [--write_params]
+                 [--output_label OUTPUT_LABEL] [--config CONFIG] [--silent] [--sign_with_mzprov]
+                 [--write_params]
                  [--mq_pep_threshold MQ_PEP_THRESHOLD] [--filterTerm FILTERTERM]
                  [--num_processors NUM_PROCESSORS] [--ms1_min_mz MS1_MIN_MZ]
                  [--ms1_max_mz MS1_MAX_MZ] [--ms2_min_mz MS2_MIN_MZ] [--ms2_max_mz MS2_MAX_MZ]
@@ -293,6 +298,9 @@ A series of plots are generated in the directiry specified in ```--out_dir``` to
                               Prefix for output files.
         --config CONFIG       Path to *.yaml config file.
         --silent              Do not print logging output to terminal
+        --sign_with_mzprov    Sign each output mzML with an mzprov provenance record
+                              declaring it simulated (requires: pip install
+                              synthedia[mzprov]).
         --write_params        Write parameters to yaml file and exit.
 
       Filtering:
