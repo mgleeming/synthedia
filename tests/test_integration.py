@@ -165,6 +165,42 @@ def test_prosit_defaults():
     assert n_ms1 > 0
     assert n_ms2 > 0
 
+def test_sign_with_mzprov(monkeypatch):
+    mzprov = pytest.importorskip('mzprov')
+    create_test_dir()
+    monkeypatch.setenv('XDG_CONFIG_HOME', os.path.join(TEST_OUTPUTS, 'config'))
+    options = update_param({
+        'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv'),
+        'sign_with_mzprov': True,
+    })
+    assembly.assemble(options)
+    check_files()
+
+    sidecar = os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.provenance.json')
+    result = mzprov.verify_sidecar(sidecar)
+    assert result.overall_ok
+    assert result.payload.tool_name == 'Synthedia'
+
+    # the signed configuration records the ground truth's hash
+    import hashlib, json
+    config = json.load(open(os.path.join(TEST_OUTPUTS, 'output_mzprov_config.json')))
+    table = open(os.path.join(TEST_OUTPUTS, 'output_peptide_table.tsv'), 'rb').read()
+    assert config['peptide_table_sha256'] == hashlib.sha256(table).hexdigest()
+
+    # shifting one spectrum's retention time after signing fails verification
+    import re
+    mzml = os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.mzML')
+    text = open(mzml).read()
+    text = re.sub(r'(name="scan start time" value=")([0-9.]+)', lambda m: m.group(1) + str(float(m.group(2)) + 1.0), text, count = 1)
+    open(mzml, 'w').write(text)
+    assert not mzprov.verify_sidecar(sidecar).overall_ok
+
+def test_unsigned_by_default():
+    create_test_dir()
+    options = update_param({'prosit': os.path.join(TEST_RESOURCES, 'myPrositLib.csv')})
+    assembly.assemble(options)
+    assert not os.path.exists(os.path.join(TEST_OUTPUTS, 'output_group_0_sample_0.provenance.json'))
+
 def test_no_peptides():
     with pytest.raises(Exception):
         create_test_dir()

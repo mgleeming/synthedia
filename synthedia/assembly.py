@@ -1,4 +1,4 @@
-import os, sys, time, copy, pickle, yaml
+import os, sys, time, copy, pickle, yaml, hashlib, json
 import random, math, datetime, logging
 import pandas as pd
 import numpy as np
@@ -380,6 +380,46 @@ def configure_logging(options):
     logger.addHandler(fh)
     return logger
 
+def sign_with_mzprov(options, logger):
+    """Sign every simulated mzML with mzprov (https://github.com/mzprov/mzprov).
+
+    Writes <label>_mzprov_config.json, holding the simulation arguments and the
+    SHA-256 of the peptide target table (the ground truth), and signs each mzML
+    with it as the configuration. Each <name>.provenance.json declares the file
+    Synthedia-simulated; mzprov keeps the signed copy of the configuration as
+    <name>.config.toml, and 'mzprov verify <mzML>' detects any later change to
+    the spectra or to that copy. The first signature generates a local signing
+    key. Requires the optional dependency: pip install synthedia[mzprov]
+    """
+    try:
+        from mzprov import sign_mzml_output
+    except ImportError as e:
+        raise ImportError('--sign_with_mzprov needs mzprov: pip install synthedia[mzprov]') from e
+
+    label = options.output_label
+    with open(os.path.join(options.out_dir, '%s_simulation_args.yaml' % label)) as f:
+        simulation_args = f.read()
+    with open(os.path.join(options.out_dir, '%s_peptide_table.tsv' % label), 'rb') as f:
+        peptide_table_sha256 = hashlib.sha256(f.read()).hexdigest()
+    config_path = os.path.join(options.out_dir, '%s_mzprov_config.json' % label)
+    with open(config_path, 'w') as f:
+        json.dump({
+            'simulation_args_yaml': simulation_args,
+            'peptide_table_sha256': peptide_table_sha256,
+        }, f, sort_keys = True, indent = 2)
+
+    for groupi in range(options.n_groups):
+        for samplei in range(options.samples_per_group):
+            name = '%s_group_%s_sample_%s' % (label, groupi, samplei)
+            sidecar = sign_mzml_output(
+                mzml_path = os.path.join(options.out_dir, name + '.mzML'),
+                config_path = config_path,
+                experiment_name = name,
+                tool_name = 'Synthedia',
+                tool_version = synthedia.__version__,
+            )
+            logger.info('\tSigned %s.mzML: %s' % (name, sidecar))
+
 def assemble(options):
 
     try:
@@ -453,6 +493,10 @@ def assemble(options):
 
     logger.info('Writing peptide target table')
     write_peptide_target_table(options, peptides)
+
+    if getattr(options, 'sign_with_mzprov', False):
+        logger.info('Signing mzML files with mzprov')
+        sign_with_mzprov(options, logger)
 
     if (options.all == True) or (options.tic == True):
         logger.info('Plotting TIC')

@@ -33,5 +33,8 @@ setup(
         "pandas", "numpy", "pyopenms",
         "pyteomics", "matplotlib", "scipy", "PyYAML"
     ],
+    extras_require = {
+        "mzprov": ["mzprov>=0.1.2"],
+    },
 )
 
